@@ -76,13 +76,14 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
     if (user == null) return;
 
     final planProvider = Provider.of<PlanProvider>(context, listen: false);
+    final isSRank = _selectedStage == 'S-Rank';
     final created = await planProvider.createPlan(
       userId: user.id,
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
       stage: _selectedStage,
-      startDate: _startDate,
-      endDate: _endDate,
+      startDate: isSRank ? DateTime(2000, 1, 1) : _startDate,
+      endDate: isSRank ? DateTime(2099, 12, 31) : _endDate,
     );
 
     if (!mounted) return;

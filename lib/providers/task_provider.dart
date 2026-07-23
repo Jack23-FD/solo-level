@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import '../app/constants/app_constants.dart';
+import '../models/plan_model.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 import 'auth_provider.dart';
@@ -15,7 +17,16 @@ class TaskProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  List<TaskModel> get todayQuests => _tasks.where((t) => t.planId == null || t.planId!.isEmpty).toList();
+  List<TaskModel> get todayQuests => _tasks;
+
+  List<TaskModel> getTodayQuests(List<PlanModel> plans) {
+    final sRankPlanIds = plans.where((p) => p.isSRank).map((p) => p.id).toSet();
+    return _tasks.where((t) {
+      if (t.priority == AppConstants.prioritySRank) return false;
+      if (t.planId != null && sRankPlanIds.contains(t.planId)) return false;
+      return true;
+    }).toList();
+  }
 
   List<TaskModel> getPlanTasks(String planId) => _tasks.where((t) => t.planId == planId).toList();
 

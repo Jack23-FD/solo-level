@@ -41,7 +41,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
   void _showAddTaskToPlanModal(BuildContext context, PlanModel plan) {
     final titleController = TextEditingController();
     final descController = TextEditingController();
-    String selectedPriority = AppConstants.priorityMedium;
+    String selectedPriority = plan.isSRank ? AppConstants.prioritySRank : AppConstants.priorityLow;
 
     showModalBottomSheet(
       context: context,
@@ -101,50 +101,52 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                       hintText: 'Detailed requirements...',
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'PRIORITY & XP',
-                    style: TextStyle(
-                      color: AppColors.textLightBlue,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                  if (!plan.isSRank) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'PRIORITY & XP',
+                      style: TextStyle(
+                        color: AppColors.textLightBlue,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children:
-                        [
-                          AppConstants.priorityLow,
-                          AppConstants.priorityMedium,
-                          AppConstants.priorityHigh,
-                          AppConstants.priorityElite,
-                        ].map((p) {
-                          final isSelected = selectedPriority == p;
-                          return ChoiceChip(
-                            label: Text(
-                              p.toUpperCase(),
-                              style: TextStyle(
-                                color: isSelected
-                                    ? AppColors.primaryBackground
-                                    : AppColors.textWhite,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children:
+                          [
+                            AppConstants.priorityLow,
+                            AppConstants.priorityMedium,
+                            AppConstants.priorityHigh,
+                            AppConstants.priorityElite,
+                          ].map((p) {
+                            final isSelected = selectedPriority == p;
+                            return ChoiceChip(
+                              label: Text(
+                                p.toUpperCase(),
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? AppColors.primaryBackground
+                                      : AppColors.textWhite,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                ),
                               ),
-                            ),
-                            selected: isSelected,
-                            selectedColor: AppColors.primaryGlow,
-                            backgroundColor: AppColors.primaryBackground,
-                            onSelected: (val) {
-                              if (val) {
-                                setModalState(() {
-                                  selectedPriority = p;
-                                });
-                              }
-                            },
-                          );
-                        }).toList(),
-                  ),
+                              selected: isSelected,
+                              selectedColor: AppColors.primaryGlow,
+                              backgroundColor: AppColors.primaryBackground,
+                              onSelected: (val) {
+                                if (val) {
+                                  setModalState(() {
+                                    selectedPriority = p;
+                                  });
+                                }
+                              },
+                            );
+                          }).toList(),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -256,66 +258,68 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                       labelText: 'Plan Objective',
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(
-                            Icons.calendar_today,
-                            size: 14,
-                            color: AppColors.primaryGlow,
-                          ),
-                          label: Text(
-                            DateFormat('MMM dd, yyyy').format(startDate),
-                            style: const TextStyle(
-                              color: AppColors.textWhite,
-                              fontSize: 11,
+                  if (!plan.isSRank) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(
+                              Icons.calendar_today,
+                              size: 14,
+                              color: AppColors.primaryGlow,
                             ),
-                          ),
-                          onPressed: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: startDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2035),
-                            );
-                            if (picked != null) {
-                              setModalState(() => startDate = picked);
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(
-                            Icons.flag,
-                            size: 14,
-                            color: AppColors.primaryGlow,
-                          ),
-                          label: Text(
-                            DateFormat('MMM dd, yyyy').format(endDate),
-                            style: const TextStyle(
-                              color: AppColors.textWhite,
-                              fontSize: 11,
+                            label: Text(
+                              DateFormat('MMM dd, yyyy').format(startDate),
+                              style: const TextStyle(
+                                color: AppColors.textWhite,
+                                fontSize: 11,
+                              ),
                             ),
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: startDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2035),
+                              );
+                              if (picked != null) {
+                                setModalState(() => startDate = picked);
+                              }
+                            },
                           ),
-                          onPressed: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: endDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2035),
-                            );
-                            if (picked != null) {
-                              setModalState(() => endDate = picked);
-                            }
-                          },
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(
+                              Icons.flag,
+                              size: 14,
+                              color: AppColors.primaryGlow,
+                            ),
+                            label: Text(
+                              DateFormat('MMM dd, yyyy').format(endDate),
+                              style: const TextStyle(
+                                color: AppColors.textWhite,
+                                fontSize: 11,
+                              ),
+                            ),
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: endDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2035),
+                              );
+                              if (picked != null) {
+                                setModalState(() => endDate = picked);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -417,50 +421,96 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                     ),
                   ],
                   const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'TIMELINE',
+                  if (plan.isSRank)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'TYPE',
+                              style: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 10,
+                              ),
+                            ),
+                            const Text(
+                              'S-RANK GOAL',
+                              style: TextStyle(
+                                color: AppColors.sRankGold,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.sRankGold.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.sRankGold),
+                          ),
+                          child: const Text(
+                            'PERMANENT',
                             style: TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 10,
+                              color: AppColors.sRankGold,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
                           ),
-                          Text(
-                            '${formatter.format(plan.startDate)} - ${formatter.format(plan.endDate)}',
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'TIMELINE',
+                              style: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 10,
+                              ),
+                            ),
+                            Text(
+                              '${formatter.format(plan.startDate)} - ${formatter.format(plan.endDate)}',
+                              style: const TextStyle(
+                                color: AppColors.primaryGlow,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryGlow.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.primaryGlow),
+                          ),
+                          child: Text(
+                            '${plan.durationInDays} DAYS',
                             style: const TextStyle(
                               color: AppColors.primaryGlow,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
                           ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
                         ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryGlow.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.primaryGlow),
-                        ),
-                        child: Text(
-                          '${plan.durationInDays} DAYS',
-                          style: const TextStyle(
-                            color: AppColors.primaryGlow,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                 ],
               ),
             ),

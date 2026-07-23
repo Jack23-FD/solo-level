@@ -19,7 +19,10 @@ class PlanModel {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  bool get isSRank => stage == 'S-Rank';
+  bool get isSRank {
+    final s = stage.trim().toUpperCase();
+    return s == 'S-RANK' || s == 'SRANK' || s == 'S_RANK';
+  }
 
   int get durationInDays {
     return endDate.difference(startDate).inDays + 1;

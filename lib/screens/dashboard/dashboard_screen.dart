@@ -211,7 +211,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final taskProvider = Provider.of<TaskProvider>(context);
+    final planProvider = Provider.of<PlanProvider>(context);
     final user = authProvider.currentUser;
+    final displayQuests = taskProvider.getTodayQuests(planProvider.plans);
 
     Widget bodyContent;
     if (_selectedNavIndex == 1) {
@@ -368,7 +370,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                       )
-                    else if (taskProvider.todayQuests.isEmpty)
+                    else if (displayQuests.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(24),
                         width: double.infinity,
@@ -410,9 +412,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: taskProvider.todayQuests.length,
+                        itemCount: displayQuests.length,
                         itemBuilder: (context, index) {
-                          final task = taskProvider.todayQuests[index];
+                          final task = displayQuests[index];
                           return TaskCard(
                             task: task,
                             onToggle: (val) async {

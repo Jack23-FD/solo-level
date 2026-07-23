@@ -87,52 +87,54 @@ class _PlanListScreenState extends State<PlanListScreen> {
                       labelText: 'Plan Objective',
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.calendar_today, size: 14, color: AppColors.primaryGlow),
-                          label: Text(
-                            DateFormat('MMM dd, yyyy').format(startDate),
-                            style: const TextStyle(color: AppColors.textWhite, fontSize: 11),
+                  if (!plan.isSRank) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.calendar_today, size: 14, color: AppColors.primaryGlow),
+                            label: Text(
+                              DateFormat('MMM dd, yyyy').format(startDate),
+                              style: const TextStyle(color: AppColors.textWhite, fontSize: 11),
+                            ),
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: startDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2035),
+                              );
+                              if (picked != null) {
+                                setModalState(() => startDate = picked);
+                              }
+                            },
                           ),
-                          onPressed: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: startDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2035),
-                            );
-                            if (picked != null) {
-                              setModalState(() => startDate = picked);
-                            }
-                          },
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.flag, size: 14, color: AppColors.primaryGlow),
-                          label: Text(
-                            DateFormat('MMM dd, yyyy').format(endDate),
-                            style: const TextStyle(color: AppColors.textWhite, fontSize: 11),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.flag, size: 14, color: AppColors.primaryGlow),
+                            label: Text(
+                              DateFormat('MMM dd, yyyy').format(endDate),
+                              style: const TextStyle(color: AppColors.textWhite, fontSize: 11),
+                            ),
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: endDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2035),
+                              );
+                              if (picked != null) {
+                                setModalState(() => endDate = picked);
+                              }
+                            },
                           ),
-                          onPressed: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: endDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2035),
-                            );
-                            if (picked != null) {
-                              setModalState(() => endDate = picked);
-                            }
-                          },
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -280,20 +282,36 @@ class _PlanListScreenState extends State<PlanListScreen> {
                               ),
                             ],
                             const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                const Icon(Icons.calendar_today, color: AppColors.primaryGlow, size: 14),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${formatter.format(plan.startDate)} - ${formatter.format(plan.endDate)}',
-                                  style: const TextStyle(
-                                    color: AppColors.textLightBlue,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                            if (plan.isSRank)
+                              Row(
+                                children: [
+                                  const Icon(Icons.star, color: AppColors.sRankGold, size: 14),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    'PERMANENT GOAL',
+                                    style: TextStyle(
+                                      color: AppColors.sRankGold,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              )
+                            else
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, color: AppColors.primaryGlow, size: 14),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${formatter.format(plan.startDate)} - ${formatter.format(plan.endDate)}',
+                                    style: const TextStyle(
+                                      color: AppColors.textLightBlue,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ),
