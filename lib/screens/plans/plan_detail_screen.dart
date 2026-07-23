@@ -41,7 +41,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
   void _showAddTaskToPlanModal(BuildContext context, PlanModel plan) {
     final titleController = TextEditingController();
     final descController = TextEditingController();
-    String selectedPriority = plan.isSRank ? AppConstants.prioritySRank : AppConstants.priorityCasual;
+    String selectedPriority = AppConstants.priorityMedium;
 
     showModalBottomSheet(
       context: context,
@@ -118,7 +118,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                           AppConstants.priorityLow,
                           AppConstants.priorityMedium,
                           AppConstants.priorityHigh,
-                          AppConstants.prioritySRank,
+                          AppConstants.priorityElite,
                         ].map((p) {
                           final isSelected = selectedPriority == p;
                           return ChoiceChip(

@@ -130,7 +130,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           AppConstants.priorityLow,
                           AppConstants.priorityMedium,
                           AppConstants.priorityHigh,
-                          AppConstants.prioritySRank,
+                          AppConstants.priorityElite,
                         ].map((String p) {
                           final isSelected = selectedPriority == p;
                           return ChoiceChip(
