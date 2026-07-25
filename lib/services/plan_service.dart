@@ -17,14 +17,18 @@ class PlanService {
     await prefs.setString(_stageCacheKey, jsonEncode(stages));
   }
 
-
-
   // Fetch plans
   Future<List<PlanModel>> getPlans(String userId) async {
     final client = SupabaseConfig.client;
     if (client != null) {
-      final data = await client.from('plans').select().eq('user_id', userId).order('created_at', ascending: false);
-      final plans = (data as List).map((item) => PlanModel.fromJson(item)).toList();
+      final data = await client
+          .from('plans')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+      final plans = (data as List)
+          .map((item) => PlanModel.fromJson(item))
+          .toList();
       // Restore cached stage for plans in case Supabase table lacks stage column or defaults it
       final prefs = await SharedPreferences.getInstance();
       final cache = prefs.getString(_stageCacheKey);
@@ -48,11 +52,14 @@ class PlanService {
           id: const Uuid().v4(),
           userId: userId,
           title: 'Become S-Rank Developer',
-          description: 'Master Flutter UI, Supabase Backend, and RPG State Architecture.',
+          description:
+              'Master Flutter UI, Supabase Backend, and RPG State Architecture.',
           startDate: DateTime.now(),
           endDate: DateTime.now().add(const Duration(days: 30)),
         );
-        await prefs.setStringList(_localPlansKey, [jsonEncode(defaultPlan.toJson())]);
+        await prefs.setStringList(_localPlansKey, [
+          jsonEncode(defaultPlan.toJson()),
+        ]);
         return [defaultPlan];
       }
       return plansJson.map((e) => PlanModel.fromJson(jsonDecode(e))).toList();
@@ -76,13 +83,21 @@ class PlanService {
         'end_date': plan.endDate.toIso8601String().split('T').first,
       };
       try {
-        final data = await client.from('plans').insert(payload).select().single();
+        final data = await client
+            .from('plans')
+            .insert(payload)
+            .select()
+            .single();
         final model = PlanModel.fromJson(data);
         return model.copyWith(stage: plan.stage);
       } catch (e) {
         if (e.toString().contains('stage')) {
           payload.remove('stage');
-          final data = await client.from('plans').insert(payload).select().single();
+          final data = await client
+              .from('plans')
+              .insert(payload)
+              .select()
+              .single();
           final model = PlanModel.fromJson(data);
           return model.copyWith(stage: plan.stage);
         }
@@ -101,9 +116,20 @@ class PlanService {
   Future<void> deletePlan(String planId) async {
     final client = SupabaseConfig.client;
     if (client != null) {
+      await client.from('tasks').delete().eq('plan_id', planId);
       await client.from('plans').delete().eq('id', planId);
     } else {
       final prefs = await SharedPreferences.getInstance();
+      
+      // Delete tasks associated with this plan
+      final tasksJson = prefs.getStringList('solo_level_local_tasks') ?? [];
+      tasksJson.removeWhere((item) {
+        final map = jsonDecode(item);
+        return map['plan_id'] == planId;
+      });
+      await prefs.setStringList('solo_level_local_tasks', tasksJson);
+
+      // Delete plan
       final plansJson = prefs.getStringList(_localPlansKey) ?? [];
       plansJson.removeWhere((item) {
         final map = jsonDecode(item);

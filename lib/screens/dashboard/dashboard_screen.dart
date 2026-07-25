@@ -127,6 +127,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     spacing: 8,
                     children:
                         [
+                          AppConstants.priorityStar,
                           AppConstants.priorityLow,
                           AppConstants.priorityMedium,
                           AppConstants.priorityHigh,
@@ -442,7 +443,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: AppColors.primaryBackground,
       appBar: _selectedNavIndex == 0
           ? AppBar(
-              title: const Text('SOLO-LEVEL SYSTEM'),
+              title: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.primaryGlow, width: 1),
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const Flexible(
+                    child: Text(
+                      'SOLO-LEVELING ...',
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
+              ),
               actions: [
                 IconButton(
                   icon: const Icon(Icons.person, color: AppColors.primaryGlow),

@@ -111,4 +111,20 @@ class TaskService {
       await prefs.setStringList(_localTasksKey, tasksJson);
     }
   }
+
+  // Delete all tasks for a plan
+  Future<void> deleteTasksForPlan(String planId) async {
+    final client = SupabaseConfig.client;
+    if (client != null) {
+      await client.from('tasks').delete().eq('plan_id', planId);
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
+      tasksJson.removeWhere((item) {
+        final map = jsonDecode(item);
+        return map['plan_id'] == planId;
+      });
+      await prefs.setStringList(_localTasksKey, tasksJson);
+    }
+  }
 }

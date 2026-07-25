@@ -27,6 +27,10 @@ class TaskCard extends StatelessWidget {
         return AppColors.highPriorityRed;
       case AppConstants.priorityLow:
         return AppColors.lowPriorityGreen;
+      case AppConstants.priorityCasual:
+        return Colors.cyan;
+      case AppConstants.priorityStar:
+        return Colors.blueGrey;
       case AppConstants.priorityMedium:
       default:
         return AppColors.mediumPriorityOrange;

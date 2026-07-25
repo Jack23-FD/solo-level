@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../app/constants/app_constants.dart';
 import '../models/plan_model.dart';
 import '../models/task_model.dart';
+import '../services/audio_service.dart';
 import '../services/task_service.dart';
 import 'auth_provider.dart';
 
@@ -20,15 +21,18 @@ class TaskProvider with ChangeNotifier {
   List<TaskModel> get todayQuests => _tasks;
 
   List<TaskModel> getTodayQuests(List<PlanModel> plans) {
+    final existingPlanIds = plans.map((p) => p.id).toSet();
     final sRankPlanIds = plans.where((p) => p.isSRank).map((p) => p.id).toSet();
     return _tasks.where((t) {
       if (t.priority == AppConstants.prioritySRank) return false;
+      if (t.planId != null && !existingPlanIds.contains(t.planId)) return false;
       if (t.planId != null && sRankPlanIds.contains(t.planId)) return false;
       return true;
     }).toList();
   }
 
-  List<TaskModel> getPlanTasks(String planId) => _tasks.where((t) => t.planId == planId).toList();
+  List<TaskModel> getPlanTasks(String planId) =>
+      _tasks.where((t) => t.planId == planId).toList();
 
   int get completedTasksCount => _tasks.where((t) => t.isCompleted).length;
 
@@ -92,6 +96,7 @@ class TaskProvider with ChangeNotifier {
 
     bool didLevelUp = false;
     if (updatedIsCompleted) {
+      AudioService.playLevelUp();
       didLevelUp = await authProvider.addXp(task.xpReward);
     } else {
       await authProvider.addXp(-task.xpReward);
@@ -126,6 +131,17 @@ class TaskProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to delete quest: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteTasksForPlan(String planId) async {
+    try {
+      await _taskService.deleteTasksForPlan(planId);
+      _tasks.removeWhere((t) => t.planId == planId);
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to delete plan quests: $e';
       notifyListeners();
     }
   }

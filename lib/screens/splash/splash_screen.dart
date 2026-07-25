@@ -20,12 +20,18 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeApp() async {
-    // Artificial minimum delay for energetic splash feel
-    await Future.delayed(const Duration(milliseconds: 1800));
-    if (!mounted) return;
-
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.checkAuthStatus();
+
+    // Run auth check in parallel with minimum 800ms splash delay for ultra-fast startup
+    await Future.wait([
+      authProvider.checkAuthStatus().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+          debugPrint('Auth check timed out, proceeding with current state');
+        },
+      ),
+      Future.delayed(const Duration(milliseconds: 800)),
+    ]);
 
     if (!mounted) return;
     if (authProvider.isLoggedIn) {
@@ -64,9 +70,11 @@ class _SplashScreenState extends State<SplashScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // RPG Icon Emblem
+                // RPG Logo Emblem
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  width: 130,
+                  height: 130,
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppColors.secondaryBackground,
@@ -74,15 +82,16 @@ class _SplashScreenState extends State<SplashScreen> {
                     boxShadow: [
                       BoxShadow(
                         color: AppColors.primaryGlow.withValues(alpha: 0.6),
-                        blurRadius: 20,
-                        spreadRadius: 2,
+                        blurRadius: 24,
+                        spreadRadius: 3,
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.shield_outlined,
-                    size: 64,
-                    color: AppColors.primaryGlow,
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 )
                     .animate()
@@ -94,7 +103,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
                 // Logo Title
                 Text(
-                  'SOLO-LEVEL',
+                  'SOLO-LEVELING',
                   style: Theme.of(context).textTheme.displayLarge?.copyWith(
                         color: AppColors.textWhite,
                         letterSpacing: 4.0,

@@ -25,10 +25,16 @@ class TaskModel {
 
   int get xpReward {
     switch (priority) {
+      case AppConstants.priorityStar:
+        return AppConstants.xpStarPriority;
       case AppConstants.priorityLow:
         return AppConstants.xpLowPriority;
+      case AppConstants.priorityCasual:
+        return AppConstants.xpCasualPriority;
       case AppConstants.priorityHigh:
         return AppConstants.xpHighPriority;
+      case AppConstants.priorityElite:
+        return AppConstants.xpElitePriority;
       case AppConstants.prioritySRank:
         return AppConstants.xpSRankPriority;
       case AppConstants.priorityMedium:

@@ -28,7 +28,7 @@ class SoloLevelApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TaskProvider()),
       ],
       child: MaterialApp.router(
-        title: 'Solo-Level',
+        title: 'Solo-Leveling',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         routerConfig: AppRouter.router,

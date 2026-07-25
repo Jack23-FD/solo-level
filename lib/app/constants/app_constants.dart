@@ -1,8 +1,9 @@
 class AppConstants {
-  static const String appName = 'Solo-Level';
+  static const String appName = 'Solo-Leveling';
   static const String appTagline = 'System Leveling & Task Management';
 
   // XP Rewards by Priority
+  static const int xpStarPriority = 2;
   static const int xpLowPriority = 20;
   static const int xpCasualPriority = 50;
   static const int xpMediumPriority = 50;
@@ -15,6 +16,7 @@ class AppConstants {
   static const int xpPerLevel = 1000;
 
   // Priority Strings
+  static const String priorityStar = '*';
   static const String priorityCasual = 'Casual';
   static const String priorityLow = 'Low';
   static const String priorityMedium = 'Medium';

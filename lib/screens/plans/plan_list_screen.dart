@@ -7,6 +7,7 @@ import '../../app/theme/app_colors.dart';
 import '../../models/plan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/plan_provider.dart';
+import '../../providers/task_provider.dart';
 import '../../widgets/rpg_card.dart';
 
 class PlanListScreen extends StatefulWidget {
@@ -266,7 +267,10 @@ class _PlanListScreenState extends State<PlanListScreen> {
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.delete_outline, color: AppColors.systemWarningRed, size: 20),
-                                      onPressed: () => planProvider.deletePlan(plan.id),
+                                      onPressed: () {
+                                        final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+                                        planProvider.deletePlan(plan.id, taskProvider: taskProvider);
+                                      },
                                     ),
                                   ],
                                 ),

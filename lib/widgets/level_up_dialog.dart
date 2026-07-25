@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../app/theme/app_colors.dart';
+import '../services/audio_service.dart';
 import 'glowing_button.dart';
 
 class LevelUpDialog extends StatelessWidget {
   final int newLevel;
 
-  const LevelUpDialog({
-    super.key,
-    required this.newLevel,
-  });
+  const LevelUpDialog({super.key, required this.newLevel});
 
   static void show(BuildContext context, int newLevel) {
+    AudioService.playLevelUp();
     showDialog(
       context: context,
       barrierColor: AppColors.primaryBackground.withValues(alpha: 0.85),
@@ -56,27 +55,29 @@ class LevelUpDialog extends StatelessWidget {
 
             // Icon energy badge
             Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const RadialGradient(
-                  colors: [AppColors.primaryGlow, AppColors.accent],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryGlow.withValues(alpha: 0.8),
-                    blurRadius: 20,
-                    spreadRadius: 2,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const RadialGradient(
+                      colors: [AppColors.primaryGlow, AppColors.accent],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryGlow.withValues(alpha: 0.8),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: const Icon(
-                Icons.electric_bolt,
-                size: 48,
-                color: AppColors.primaryBackground,
-              ),
-            )
-                .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                  child: const Icon(
+                    Icons.electric_bolt,
+                    size: 48,
+                    color: AppColors.primaryBackground,
+                  ),
+                )
+                .animate(
+                  onPlay: (controller) => controller.repeat(reverse: true),
+                )
                 .scale(
                   begin: const Offset(0.9, 0.9),
                   end: const Offset(1.1, 1.1),
@@ -90,11 +91,11 @@ class LevelUpDialog extends StatelessWidget {
               'LEVEL UP ACHIEVED!',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    color: AppColors.sRankGold,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
-                  ),
+                color: AppColors.sRankGold,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+              ),
             ).animate().fadeIn().moveY(begin: 10, end: 0),
 
             const SizedBox(height: 8),
@@ -102,9 +103,9 @@ class LevelUpDialog extends StatelessWidget {
             Text(
               'You have reached Level $newLevel!',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppColors.textWhite,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: AppColors.textWhite,
+                fontWeight: FontWeight.w600,
+              ),
             ),
 
             const SizedBox(height: 20),

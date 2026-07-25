@@ -22,7 +22,10 @@ class AuthProvider with ChangeNotifier {
     try {
       _isLoggedIn = await _authService.isLoggedIn();
       if (_isLoggedIn) {
-        _currentUser = await _authService.getProfile();
+        _currentUser = await _authService.getProfile().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => null,
+        );
       }
     } catch (e) {
       _isLoggedIn = false;

@@ -116,6 +116,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                       spacing: 8,
                       children:
                           [
+                            AppConstants.priorityStar,
                             AppConstants.priorityLow,
                             AppConstants.priorityMedium,
                             AppConstants.priorityHigh,

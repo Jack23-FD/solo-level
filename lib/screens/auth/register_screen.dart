@@ -68,18 +68,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Top Header Logo
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.shield, color: AppColors.primaryGlow, size: 36),
-                    const SizedBox(width: 8),
-                    Text(
-                      'SOLO-LEVEL',
-                      style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                            letterSpacing: 3.0,
-                          ),
+                Container(
+                  width: 90,
+                  height: 90,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primaryGlow, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryGlow.withValues(alpha: 0.5),
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      fit: BoxFit.cover,
                     ),
-                  ],
+                  ),
+                ).animate().scale(duration: 600.ms),
+
+                Text(
+                  'SOLO-LEVELING',
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                        letterSpacing: 3.0,
+                      ),
                 ).animate().fadeIn().moveY(begin: -20, end: 0),
 
                 const SizedBox(height: 8),

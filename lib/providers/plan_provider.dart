@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/plan_model.dart';
 import '../services/plan_service.dart';
+import 'task_provider.dart';
 
 class PlanProvider with ChangeNotifier {
   final PlanService _planService = PlanService();
@@ -60,10 +61,13 @@ class PlanProvider with ChangeNotifier {
     }
   }
 
-  Future<void> deletePlan(String planId) async {
+  Future<void> deletePlan(String planId, {TaskProvider? taskProvider}) async {
     try {
       await _planService.deletePlan(planId);
       _plans.removeWhere((p) => p.id == planId);
+      if (taskProvider != null) {
+        await taskProvider.deleteTasksForPlan(planId);
+      }
       notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to delete plan: $e';
