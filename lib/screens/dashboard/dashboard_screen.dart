@@ -6,6 +6,8 @@ import '../../app/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/plan_provider.dart';
 import '../../providers/task_provider.dart';
+import '../../widgets/confirm_delete_dialog.dart';
+import '../../widgets/edit_task_dialog.dart';
 import '../../widgets/level_up_dialog.dart';
 import '../../widgets/progress_bar.dart';
 import '../../widgets/rpg_card.dart';
@@ -223,8 +225,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bodyContent = const ProfileScreen();
     } else {
       bodyContent = user == null
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGlow),
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(color: AppColors.primaryGlow),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'INITIALIZING HUNTER DATA...',
+                      style: TextStyle(
+                        color: AppColors.primaryGlow,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.primaryGlow),
+                          ),
+                          onPressed: () {
+                            authProvider.checkAuthStatus();
+                          },
+                          child: const Text(
+                            'RELOAD STATUS',
+                            style: TextStyle(color: AppColors.primaryGlow),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                          ),
+                          onPressed: () {
+                            authProvider.logout();
+                          },
+                          child: const Text(
+                            'RETURN TO LOGIN',
+                            style: TextStyle(color: AppColors.textWhite),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             )
           : RefreshIndicator(
               onRefresh: () async => _loadData(),
@@ -429,7 +480,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 );
                               }
                             },
-                            onDelete: () => taskProvider.deleteTask(task.id),
+                            onEdit: () {
+                              EditTaskDialog.show(
+                                context,
+                                task: task,
+                                onSave: (updatedTask) {
+                                  taskProvider.updateTask(updatedTask);
+                                },
+                              );
+                            },
+                            onDelete: () async {
+                              final confirmed = await ConfirmDeleteDialog.show(
+                                context,
+                                title: 'Delete Quest',
+                                message: 'Are you sure you want to delete "${task.title}"?',
+                              );
+                              if (confirmed) {
+                                taskProvider.deleteTask(task.id);
+                              }
+                            },
                           );
                         },
                       ),

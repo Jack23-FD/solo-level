@@ -28,7 +28,8 @@ class TaskService {
             id: const Uuid().v4(),
             userId: userId,
             title: 'Complete Flutter UI Framework',
-            description: 'Build futuristic anime RPG user interface with dark blue theme.',
+            description:
+                'Build futuristic anime RPG user interface with dark blue theme.',
             priority: AppConstants.prioritySRank,
             isCompleted: false,
           ),
@@ -49,10 +50,15 @@ class TaskService {
             isCompleted: true,
           ),
         ];
-        await prefs.setStringList(_localTasksKey, defaultTasks.map((e) => jsonEncode(e.toJson())).toList());
+        await prefs.setStringList(
+          _localTasksKey,
+          defaultTasks.map((e) => jsonEncode(e.toJson())).toList(),
+        );
         return defaultTasks;
       }
-      List<TaskModel> list = tasksJson.map((e) => TaskModel.fromJson(jsonDecode(e))).toList();
+      List<TaskModel> list = tasksJson
+          .map((e) => TaskModel.fromJson(jsonDecode(e)))
+          .toList();
       if (planId != null) {
         list = list.where((t) => t.planId == planId).toList();
       }
@@ -64,7 +70,11 @@ class TaskService {
   Future<TaskModel> createTask(TaskModel task) async {
     final client = SupabaseConfig.client;
     if (client != null) {
-      final data = await client.from('tasks').insert(task.toJson()).select().single();
+      final data = await client
+          .from('tasks')
+          .insert(task.toJson())
+          .select()
+          .single();
       return TaskModel.fromJson(data);
     } else {
       final prefs = await SharedPreferences.getInstance();
@@ -79,7 +89,12 @@ class TaskService {
   Future<TaskModel> updateTask(TaskModel task) async {
     final client = SupabaseConfig.client;
     if (client != null) {
-      final data = await client.from('tasks').update(task.toJson()).eq('id', task.id).select().single();
+      final data = await client
+          .from('tasks')
+          .update(task.toJson())
+          .eq('id', task.id)
+          .select()
+          .single();
       return TaskModel.fromJson(data);
     } else {
       final prefs = await SharedPreferences.getInstance();

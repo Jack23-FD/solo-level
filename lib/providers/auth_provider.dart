@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
-  
+
   UserModel? _currentUser;
   bool _isLoggedIn = false;
   bool _isLoading = false;
@@ -23,9 +24,12 @@ class AuthProvider with ChangeNotifier {
       _isLoggedIn = await _authService.isLoggedIn();
       if (_isLoggedIn) {
         _currentUser = await _authService.getProfile().timeout(
-          const Duration(seconds: 2),
+          const Duration(seconds: 3),
           onTimeout: () => null,
         );
+        if (_currentUser == null) {
+          _isLoggedIn = false;
+        }
       }
     } catch (e) {
       _isLoggedIn = false;
@@ -53,6 +57,14 @@ class AuthProvider with ChangeNotifier {
       );
       _isLoggedIn = true;
       return true;
+    } on AuthException catch (e) {
+      if (e.code == 'over_email_send_rate_limit' || e.statusCode == '429') {
+        _errorMessage =
+            'Email rate limit exceeded (429). Supabase restricts email frequency on default SMTP. Please wait a few minutes or disable "Confirm email" in Supabase Auth Settings.';
+      } else {
+        _errorMessage = e.message;
+      }
+      return false;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       return false;
@@ -63,20 +75,22 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Login
-  Future<bool> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<bool> login({required String email, required String password}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
     try {
-      _currentUser = await _authService.login(
-        email: email,
-        password: password,
-      );
+      _currentUser = await _authService.login(email: email, password: password);
       _isLoggedIn = true;
       return true;
+    } on AuthException catch (e) {
+      if (e.code == 'over_email_send_rate_limit' || e.statusCode == '429') {
+        _errorMessage =
+            'Email rate limit exceeded (429). Please wait a few minutes before retrying.';
+      } else {
+        _errorMessage = e.message;
+      }
+      return false;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       return false;

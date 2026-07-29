@@ -34,7 +34,7 @@ class _SplashScreenState extends State<SplashScreen> {
     ]);
 
     if (!mounted) return;
-    if (authProvider.isLoggedIn) {
+    if (authProvider.isLoggedIn && authProvider.currentUser != null) {
       context.go('/dashboard');
     } else {
       context.go('/login');

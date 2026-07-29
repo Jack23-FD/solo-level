@@ -93,18 +93,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 Text(
                   'SOLO-LEVELING',
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        letterSpacing: 3.0,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.displayMedium?.copyWith(letterSpacing: 3.0),
                 ).animate().fadeIn().moveY(begin: -20, end: 0),
 
                 const SizedBox(height: 8),
                 Text(
                   'AWAKEN AS A NEW HUNTER',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textMuted,
-                        letterSpacing: 1.5,
-                      ),
+                    color: AppColors.textMuted,
+                    letterSpacing: 1.5,
+                  ),
                 ).animate().fadeIn(delay: 200.ms),
 
                 const SizedBox(height: 32),
@@ -177,7 +177,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
                                 color: AppColors.primaryGlow,
                               ),
                               onPressed: () {

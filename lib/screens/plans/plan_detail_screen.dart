@@ -7,6 +7,8 @@ import '../../models/plan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/plan_provider.dart';
 import '../../providers/task_provider.dart';
+import '../../widgets/confirm_delete_dialog.dart';
+import '../../widgets/edit_task_dialog.dart';
 import '../../widgets/level_up_dialog.dart';
 import '../../widgets/rpg_card.dart';
 import '../../widgets/task_card.dart';
@@ -597,7 +599,25 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                         );
                       }
                     },
-                    onDelete: () => taskProvider.deleteTask(task.id),
+                    onEdit: () {
+                      EditTaskDialog.show(
+                        context,
+                        task: task,
+                        onSave: (updatedTask) {
+                          taskProvider.updateTask(updatedTask);
+                        },
+                      );
+                    },
+                    onDelete: () async {
+                      final confirmed = await ConfirmDeleteDialog.show(
+                        context,
+                        title: 'Delete Quest',
+                        message: 'Are you sure you want to delete "${task.title}"?',
+                      );
+                      if (confirmed) {
+                        taskProvider.deleteTask(task.id);
+                      }
+                    },
                   );
                 },
               ),

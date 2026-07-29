@@ -79,35 +79,44 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
+  final Set<String> _processingTaskIds = {};
+
   // Toggle completion & trigger XP award
   // Returns true if completing this task triggered a Level Up!
   Future<bool> toggleTaskCompletion(
     TaskModel task,
     AuthProvider authProvider,
   ) async {
-    final updatedIsCompleted = !task.isCompleted;
-    final updatedTask = task.copyWith(isCompleted: updatedIsCompleted);
-
-    final index = _tasks.indexWhere((t) => t.id == task.id);
-    if (index != -1) {
-      _tasks[index] = updatedTask;
-      notifyListeners();
-    }
-
-    bool didLevelUp = false;
-    if (updatedIsCompleted) {
-      AudioService.playLevelUp();
-      didLevelUp = await authProvider.addXp(task.xpReward);
-    } else {
-      await authProvider.addXp(-task.xpReward);
-    }
+    if (_processingTaskIds.contains(task.id)) return false;
+    _processingTaskIds.add(task.id);
 
     try {
-      await _taskService.updateTask(updatedTask);
-    } catch (e) {
-      _errorMessage = 'Failed to update quest status: $e';
+      final updatedIsCompleted = !task.isCompleted;
+      final updatedTask = task.copyWith(isCompleted: updatedIsCompleted);
+
+      final index = _tasks.indexWhere((t) => t.id == task.id);
+      if (index != -1) {
+        _tasks[index] = updatedTask;
+        notifyListeners();
+      }
+
+      bool didLevelUp = false;
+      if (updatedIsCompleted) {
+        AudioService.playLevelUp();
+        didLevelUp = await authProvider.addXp(task.xpReward);
+      } else {
+        await authProvider.addXp(-task.xpReward);
+      }
+
+      try {
+        await _taskService.updateTask(updatedTask);
+      } catch (e) {
+        _errorMessage = 'Failed to update quest status: $e';
+      }
+      return didLevelUp;
+    } finally {
+      _processingTaskIds.remove(task.id);
     }
-    return didLevelUp;
   }
 
   Future<void> updateTask(TaskModel task) async {

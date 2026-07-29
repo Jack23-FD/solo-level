@@ -8,6 +8,7 @@ import '../../models/plan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/plan_provider.dart';
 import '../../providers/task_provider.dart';
+import '../../widgets/confirm_delete_dialog.dart';
 import '../../widgets/rpg_card.dart';
 
 class PlanListScreen extends StatefulWidget {
@@ -267,9 +268,16 @@ class _PlanListScreenState extends State<PlanListScreen> {
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.delete_outline, color: AppColors.systemWarningRed, size: 20),
-                                      onPressed: () {
+                                      onPressed: () async {
                                         final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-                                        planProvider.deletePlan(plan.id, taskProvider: taskProvider);
+                                        final confirmed = await ConfirmDeleteDialog.show(
+                                          context,
+                                          title: 'Delete Plan',
+                                          message: 'Are you sure you want to delete "${plan.title}"? All quests associated with this plan will be permanently removed.',
+                                        );
+                                        if (confirmed) {
+                                          planProvider.deletePlan(plan.id, taskProvider: taskProvider);
+                                        }
                                       },
                                     ),
                                   ],

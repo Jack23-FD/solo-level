@@ -120,7 +120,7 @@ class PlanService {
       await client.from('plans').delete().eq('id', planId);
     } else {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Delete tasks associated with this plan
       final tasksJson = prefs.getStringList('solo_level_local_tasks') ?? [];
       tasksJson.removeWhere((item) {

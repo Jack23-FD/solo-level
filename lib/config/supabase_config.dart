@@ -14,7 +14,9 @@ class SupabaseConfig {
 
   static Future<void> init() async {
     if (!isConfigured) {
-      debugPrint('[Solo-Level] Supabase credentials not set. Running in Local Demo Mode.');
+      debugPrint(
+        '[Solo-Level] Supabase credentials not set. Running in Local Demo Mode.',
+      );
       return;
     }
     try {
