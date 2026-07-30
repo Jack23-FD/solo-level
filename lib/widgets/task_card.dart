@@ -67,15 +67,16 @@ class TaskCard extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Custom Checkbox
-              GestureDetector(
-                onTap: () => onToggle(!task.isCompleted),
-                child: AnimatedContainer(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => onToggle(!task.isCompleted),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Custom Checkbox
+                AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   width: 28,
                   height: 28,
@@ -109,7 +110,6 @@ class TaskCard extends StatelessWidget {
                         )
                       : null,
                 ),
-              ),
               const SizedBox(width: 14),
 
               // Task Text Details
@@ -248,6 +248,7 @@ class TaskCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

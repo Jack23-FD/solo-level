@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../app/constants/app_constants.dart';
@@ -7,9 +8,42 @@ import '../models/task_model.dart';
 
 class TaskService {
   static const String _localTasksKey = 'solo_level_local_tasks';
+  static const String _lastResetKey = 'solo_level_last_reset_date';
+
+  // Check and reset daily tasks if a new day has arrived
+  Future<void> checkAndResetDailyTasks(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final lastReset = prefs.getString(_lastResetKey);
+
+    if (lastReset != todayStr) {
+      final client = SupabaseConfig.client;
+      if (client != null) {
+        try {
+          await client
+              .from('tasks')
+              .update({'is_completed': false})
+              .eq('user_id', userId);
+        } catch (_) {}
+      }
+
+      final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
+      if (tasksJson.isNotEmpty) {
+        final updatedList = tasksJson.map((item) {
+          final map = jsonDecode(item) as Map<String, dynamic>;
+          map['is_completed'] = false;
+          return jsonEncode(map);
+        }).toList();
+        await prefs.setStringList(_localTasksKey, updatedList);
+      }
+
+      await prefs.setString(_lastResetKey, todayStr);
+    }
+  }
 
   // Get tasks for user (or filtered by plan)
   Future<List<TaskModel>> getTasks(String userId, {String? planId}) async {
+    await checkAndResetDailyTasks(userId);
     final client = SupabaseConfig.client;
     if (client != null) {
       var query = client.from('tasks').select().eq('user_id', userId);

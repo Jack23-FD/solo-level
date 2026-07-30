@@ -3,7 +3,6 @@ import 'package:uuid/uuid.dart';
 import '../app/constants/app_constants.dart';
 import '../models/plan_model.dart';
 import '../models/task_model.dart';
-import '../services/audio_service.dart';
 import '../services/task_service.dart';
 import 'auth_provider.dart';
 
@@ -102,7 +101,6 @@ class TaskProvider with ChangeNotifier {
 
       bool didLevelUp = false;
       if (updatedIsCompleted) {
-        AudioService.playLevelUp();
         didLevelUp = await authProvider.addXp(task.xpReward);
       } else {
         await authProvider.addXp(-task.xpReward);
