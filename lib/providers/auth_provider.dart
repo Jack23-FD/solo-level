@@ -151,9 +151,7 @@ class AuthProvider with ChangeNotifier {
     _currentUser = updated;
     notifyListeners();
 
-    try {
-      await _authService.updateProfile(updated);
-    } catch (_) {}
+    _authService.updateProfile(updated).catchError((_) => updated);
 
     return didLevelUp;
   }

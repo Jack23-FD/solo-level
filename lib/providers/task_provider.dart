@@ -78,43 +78,36 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
-  final Set<String> _processingTaskIds = {};
-
   // Toggle completion & trigger XP award
   // Returns true if completing this task triggered a Level Up!
   Future<bool> toggleTaskCompletion(
     TaskModel task,
     AuthProvider authProvider,
   ) async {
-    if (_processingTaskIds.contains(task.id)) return false;
-    _processingTaskIds.add(task.id);
+    final index = _tasks.indexWhere((t) => t.id == task.id);
+    if (index == -1) return false;
 
-    try {
-      final updatedIsCompleted = !task.isCompleted;
-      final updatedTask = task.copyWith(isCompleted: updatedIsCompleted);
+    final currentTask = _tasks[index];
+    final updatedIsCompleted = !currentTask.isCompleted;
+    final updatedTask = currentTask.copyWith(isCompleted: updatedIsCompleted);
 
-      final index = _tasks.indexWhere((t) => t.id == task.id);
-      if (index != -1) {
-        _tasks[index] = updatedTask;
-        notifyListeners();
-      }
+    // Optimistically update task in local list immediately
+    _tasks[index] = updatedTask;
+    notifyListeners();
 
-      bool didLevelUp = false;
-      if (updatedIsCompleted) {
-        didLevelUp = await authProvider.addXp(task.xpReward);
-      } else {
-        await authProvider.addXp(-task.xpReward);
-      }
+    // Optimistically adjust XP and check level up
+    final didLevelUp = await authProvider.addXp(
+      updatedIsCompleted ? currentTask.xpReward : -currentTask.xpReward,
+    );
 
-      try {
-        await _taskService.updateTask(updatedTask);
-      } catch (e) {
-        _errorMessage = 'Failed to update quest status: $e';
-      }
-      return didLevelUp;
-    } finally {
-      _processingTaskIds.remove(task.id);
-    }
+    // Sync task update with database/prefs in background
+    _taskService.updateTask(updatedTask).catchError((e) {
+      _errorMessage = 'Failed to update quest status: $e';
+      notifyListeners();
+      return updatedTask;
+    });
+
+    return didLevelUp;
   }
 
   Future<void> updateTask(TaskModel task) async {
