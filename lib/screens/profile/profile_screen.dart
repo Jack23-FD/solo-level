@@ -19,8 +19,24 @@ class ProfileScreen extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
     final taskProvider = Provider.of<TaskProvider>(context);
     final user = authProvider.currentUser;
-
     final DateFormat formatter = DateFormat('MMM dd, yyyy');
+
+    int effectiveLevel = user?.level ?? 1;
+    int effectiveXp = user?.experience ?? 0;
+
+    if (user != null && taskProvider.tasks.isNotEmpty) {
+      int completedXpSum = 0;
+      for (final quest in taskProvider.tasks) {
+        if (quest.isCompleted) {
+          completedXpSum += quest.xpReward;
+        }
+      }
+      int storedTotalXp = ((user.level - 1) * 1000) + user.experience;
+      if (completedXpSum > storedTotalXp) {
+        effectiveLevel = 1 + (completedXpSum ~/ 1000);
+        effectiveXp = completedXpSum % 1000;
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
@@ -105,7 +121,7 @@ class ProfileScreen extends StatelessWidget {
                             border: Border.all(color: AppColors.primaryGlow),
                           ),
                           child: Text(
-                            'LEVEL ${user.level} HUNTER',
+                            'LEVEL $effectiveLevel HUNTER',
                             style: const TextStyle(
                               color: AppColors.primaryGlow,
                               fontWeight: FontWeight.bold,
@@ -126,8 +142,8 @@ class ProfileScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         ProgressBar(
-                          currentXp: user.experience,
-                          maxXp: user.maxExperienceForCurrentLevel,
+                          currentXp: effectiveXp,
+                          maxXp: effectiveLevel * 1000,
                           label: 'CURRENT LEVEL EXP',
                         ),
                         const SizedBox(height: 20),

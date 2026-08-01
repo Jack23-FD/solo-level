@@ -230,8 +230,15 @@ class AuthService {
     final client = SupabaseConfig.client;
     if (client != null && client.auth.currentUser != null) {
       try {
-        await client.from('profiles').upsert(updatedUser.toJson());
-      } catch (_) {}
+        await client
+            .from('profiles')
+            .update(updatedUser.toJson())
+            .eq('id', updatedUser.id);
+      } catch (_) {
+        try {
+          await client.from('profiles').upsert(updatedUser.toJson());
+        } catch (_) {}
+      }
     }
     return updatedUser;
   }

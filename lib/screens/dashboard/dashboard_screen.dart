@@ -220,6 +220,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = authProvider.currentUser;
     final displayQuests = taskProvider.getTodayQuests(planProvider.plans);
 
+    int effectiveLevel = user?.level ?? 1;
+    int effectiveXp = user?.experience ?? 0;
+
+    if (user != null && displayQuests.isNotEmpty) {
+      int completedXpSum = 0;
+      for (final quest in displayQuests) {
+        if (quest.isCompleted) {
+          completedXpSum += quest.xpReward;
+        }
+      }
+      int storedTotalXp = ((user.level - 1) * 1000) + user.experience;
+      if (completedXpSum > storedTotalXp) {
+        effectiveLevel = 1 + (completedXpSum ~/ 1000);
+        effectiveXp = completedXpSum % 1000;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          authProvider.syncXpWithCompletedTasks(displayQuests);
+        });
+      }
+    }
+
     Widget bodyContent;
     if (_selectedNavIndex == 1) {
       bodyContent = const PlanListScreen();
@@ -331,7 +351,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    _getHunterRank(user.level),
+                                    _getHunterRank(effectiveLevel),
                                     style: const TextStyle(
                                       color: AppColors.sRankGold,
                                       fontSize: 12,
@@ -356,7 +376,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                                 child: Text(
-                                  'LV. ${user.level}',
+                                  'LV. $effectiveLevel',
                                   style: const TextStyle(
                                     color: AppColors.primaryGlow,
                                     fontWeight: FontWeight.bold,
@@ -368,8 +388,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           const SizedBox(height: 16),
                           ProgressBar(
-                            currentXp: user.experience,
-                            maxXp: user.maxExperienceForCurrentLevel,
+                            currentXp: effectiveXp,
+                            maxXp: effectiveLevel * 1000,
                             label: 'EXP PROGRESS',
                           ),
                         ],

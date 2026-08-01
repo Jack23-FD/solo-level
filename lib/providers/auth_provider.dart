@@ -1,3 +1,4 @@
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/task_model.dart';
@@ -18,9 +19,14 @@ class AuthProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   void _safeNotifyListeners() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    final binding = WidgetsBinding.instance;
+    if (binding.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      binding.addPostFrameCallback((_) {
+        notifyListeners();
+      });
+    } else {
       notifyListeners();
-    });
+    }
   }
 
   // Initialize and check current session
@@ -157,7 +163,7 @@ class AuthProvider with ChangeNotifier {
     );
 
     _currentUser = updated;
-    notifyListeners();
+    _safeNotifyListeners();
 
     _authService.updateProfile(updated).catchError((_) => updated);
 
@@ -188,7 +194,7 @@ class AuthProvider with ChangeNotifier {
       );
 
       _currentUser = updated;
-      notifyListeners();
+      _safeNotifyListeners();
       await _authService.updateProfile(updated);
     }
   }
