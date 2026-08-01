@@ -14,6 +14,7 @@ import '../../widgets/rpg_card.dart';
 import '../../widgets/task_card.dart';
 import '../plans/plan_list_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../services/audio_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -37,7 +38,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.currentUser;
     if (user != null) {
-      Provider.of<TaskProvider>(context, listen: false).fetchTasks(user.id);
+      Provider.of<TaskProvider>(context, listen: false)
+          .fetchTasks(user.id, authProvider: authProvider);
       Provider.of<PlanProvider>(context, listen: false).fetchPlans(user.id);
     }
   }
@@ -541,7 +543,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.person, color: AppColors.primaryGlow),
-                  onPressed: () => setState(() => _selectedNavIndex = 2),
+                  onPressed: () {
+                    if (_selectedNavIndex != 2) {
+                      AudioService.playPageChange();
+                      setState(() => _selectedNavIndex = 2);
+                    }
+                  },
                 ),
               ],
             )
@@ -554,9 +561,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         unselectedItemColor: AppColors.textMuted,
         type: BottomNavigationBarType.fixed,
         onTap: (index) {
-          setState(() {
-            _selectedNavIndex = index;
-          });
+          if (_selectedNavIndex != index) {
+            AudioService.playPageChange();
+            setState(() {
+              _selectedNavIndex = index;
+            });
+          }
         },
         items: const [
           BottomNavigationBarItem(

@@ -9,7 +9,7 @@ import 'providers/task_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Supabase configuration
   await SupabaseConfig.init();
 

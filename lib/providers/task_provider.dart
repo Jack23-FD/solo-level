@@ -35,12 +35,19 @@ class TaskProvider with ChangeNotifier {
 
   int get completedTasksCount => _tasks.where((t) => t.isCompleted).length;
 
-  Future<void> fetchTasks(String userId, {String? planId}) async {
+  Future<void> fetchTasks(
+    String userId, {
+    String? planId,
+    AuthProvider? authProvider,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
     try {
       _tasks = await _taskService.getTasks(userId);
+      if (authProvider != null) {
+        await authProvider.syncXpWithCompletedTasks(_tasks);
+      }
     } catch (e) {
       _errorMessage = 'Failed to load quests: $e';
     } finally {
@@ -142,6 +149,17 @@ class TaskProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to delete plan quests: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> resetAllTaskCompletions(String userId) async {
+    try {
+      await _taskService.resetAllTaskCompletions(userId);
+      _tasks = _tasks.map((t) => t.copyWith(isCompleted: false)).toList();
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to reset quest completion status: $e';
       notifyListeners();
     }
   }

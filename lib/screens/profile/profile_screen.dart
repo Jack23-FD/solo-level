@@ -157,7 +157,57 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ).animate().fadeIn(delay: 200.ms).moveY(begin: 15, end: 0),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
+
+                  // Reset Progress Day 1 Button
+                  GlowingButton(
+                    text: 'RESET PROGRESS (DAY 1 START)',
+                    glowColor: AppColors.primaryGlow,
+                    buttonColor: AppColors.secondaryBackground,
+                    icon: Icons.refresh,
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: AppColors.secondaryBackground,
+                          title: const Text(
+                            'RESET PROGRESS TO DAY 1?',
+                            style: TextStyle(color: AppColors.primaryGlow, fontWeight: FontWeight.bold),
+                          ),
+                          content: const Text(
+                            'This will reset your profile to Level 1 (0 XP) for your Day 1 fresh start. Proceed?',
+                            style: TextStyle(color: AppColors.textWhite),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('CANCEL', style: TextStyle(color: AppColors.textMuted)),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGlow),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('RESET TO LEVEL 1', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirm == true) {
+                        await authProvider.resetProgressToDayOne();
+                        await taskProvider.resetAllTaskCompletions(user.id);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('System Reset Complete: Welcome to Day 1, Level 1 Hunter!'),
+                              backgroundColor: AppColors.primaryGlow,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ).animate().fadeIn(delay: 250.ms),
+
+                  const SizedBox(height: 16),
 
                   // Logout Button
                   GlowingButton(

@@ -19,6 +19,12 @@ class AuthService {
     return prefs.getBool(_localSessionKey) ?? false;
   }
 
+  Future<void> _saveSession(UserModel user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_localSessionKey, true);
+    await prefs.setString(_localUserKey, jsonEncode(user.toJson()));
+  }
+
   // Register user
   Future<UserModel> register({
     required String email,
@@ -38,26 +44,26 @@ class AuthService {
           throw Exception('Registration failed. Please try again.');
         }
 
-        // Fetch or initialize profile
+        UserModel profile;
         try {
           final profileData = await client
               .from('profiles')
               .select()
               .eq('id', user.id)
               .single();
-          return UserModel.fromJson(profileData);
+          profile = UserModel.fromJson(profileData);
         } catch (_) {
-          final newProfile = UserModel(id: user.id, username: username);
-          await client.from('profiles').upsert(newProfile.toJson());
-          return newProfile;
+          profile = UserModel(id: user.id, username: username);
+          await client.from('profiles').upsert(profile.toJson());
         }
+        await _saveSession(profile);
+        return profile;
       } on AuthException catch (e) {
         final isUnconfirmed = e.code == 'email_not_confirmed' ||
             e.message.toLowerCase().contains('email not confirmed');
         final isRateLimit =
             e.code == 'over_email_send_rate_limit' || e.statusCode == '429';
         if (isUnconfirmed || isRateLimit) {
-          // Fall back to local registration when Supabase restricts unconfirmed emails
           return _registerLocally(email: email, username: username);
         }
         rethrow;
@@ -66,7 +72,6 @@ class AuthService {
         if (errStr.contains('SocketException') ||
             errStr.contains('Failed host lookup') ||
             errStr.contains('ClientException')) {
-          // Fall back to local registration when offline or no internet
           return _registerLocally(email: email, username: username);
         }
         rethrow;
@@ -81,7 +86,6 @@ class AuthService {
     required String email,
     required String username,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
     final newId = const Uuid().v4();
     final localUser = UserModel(
       id: newId,
@@ -89,8 +93,7 @@ class AuthService {
       level: 1,
       experience: 250, // Starting bonus XP
     );
-    await prefs.setString(_localUserKey, jsonEncode(localUser.toJson()));
-    await prefs.setBool(_localSessionKey, true);
+    await _saveSession(localUser);
     return localUser;
   }
 
@@ -111,21 +114,23 @@ class AuthService {
           throw Exception('Login failed. Check your credentials.');
         }
 
+        UserModel profile;
         try {
           final profileData = await client
               .from('profiles')
               .select()
               .eq('id', user.id)
               .single();
-          return UserModel.fromJson(profileData);
+          profile = UserModel.fromJson(profileData);
         } catch (_) {
           final username =
               (user.userMetadata?['username'] as String?) ??
               email.split('@').first;
-          final newProfile = UserModel(id: user.id, username: username);
-          await client.from('profiles').upsert(newProfile.toJson());
-          return newProfile;
+          profile = UserModel(id: user.id, username: username);
+          await client.from('profiles').upsert(profile.toJson());
         }
+        await _saveSession(profile);
+        return profile;
       } on AuthException catch (e) {
         final isUnconfirmed = e.code == 'email_not_confirmed' ||
             e.message.toLowerCase().contains('email not confirmed');
@@ -161,6 +166,15 @@ class AuthService {
 
   // Fetch Current Profile
   Future<UserModel?> getProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final localJson = prefs.getString(_localUserKey);
+    UserModel? localProfile;
+    if (localJson != null) {
+      try {
+        localProfile = UserModel.fromJson(jsonDecode(localJson));
+      } catch (_) {}
+    }
+
     final client = SupabaseConfig.client;
     if (client != null && client.auth.currentUser != null) {
       final user = client.auth.currentUser!;
@@ -171,48 +185,65 @@ class AuthService {
             .eq('id', user.id)
             .single()
             .timeout(const Duration(seconds: 3));
-        return UserModel.fromJson(profileData);
-      } catch (_) {
-        try {
-          final username =
-              (user.userMetadata?['username'] as String?) ??
-              user.email?.split('@').first ??
-              'Shadow Hunter';
-          final newProfile = UserModel(id: user.id, username: username);
-          await client
-              .from('profiles')
-              .upsert(newProfile.toJson())
-              .timeout(const Duration(seconds: 3));
-          return newProfile;
-        } catch (_) {
-          final username =
-              (user.userMetadata?['username'] as String?) ??
-              user.email?.split('@').first ??
-              'Shadow Hunter';
-          return UserModel(id: user.id, username: username);
+        final remoteProfile = UserModel.fromJson(profileData);
+
+        // Keep whichever profile has higher level/experience to prevent level resets
+        UserModel merged = remoteProfile;
+        if (localProfile != null) {
+          int localTotalXp = (localProfile.level * 1000) + localProfile.experience;
+          int remoteTotalXp = (remoteProfile.level * 1000) + remoteProfile.experience;
+          if (localTotalXp > remoteTotalXp) {
+            merged = localProfile;
+            try {
+              client.from('profiles').upsert(localProfile.toJson());
+            } catch (_) {}
+          }
         }
+        await prefs.setString(_localUserKey, jsonEncode(merged.toJson()));
+        return merged;
+      } catch (_) {
+        if (localProfile != null) {
+          return localProfile;
+        }
+        final username = (user.userMetadata?['username'] as String?) ??
+            user.email?.split('@').first ??
+            'Shadow Hunter';
+        final newProfile = UserModel(id: user.id, username: username, level: 1, experience: 250);
+        await prefs.setString(_localUserKey, jsonEncode(newProfile.toJson()));
+        try {
+          await client.from('profiles').upsert(newProfile.toJson());
+        } catch (_) {}
+        return newProfile;
       }
     } else {
-      final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString(_localUserKey);
-      if (userJson != null) {
-        return UserModel.fromJson(jsonDecode(userJson));
-      }
-      return null;
+      return localProfile;
     }
   }
 
   // Update Profile XP / Level
   Future<UserModel> updateProfile(UserModel updatedUser) async {
+    // 1. ALWAYS persist to local disk immediately so level and XP are never lost
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_localUserKey, jsonEncode(updatedUser.toJson()));
+
+    // 2. Sync to Supabase in background
     final client = SupabaseConfig.client;
     if (client != null && client.auth.currentUser != null) {
-      await client.from('profiles').upsert(updatedUser.toJson());
-      return updatedUser;
-    } else {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_localUserKey, jsonEncode(updatedUser.toJson()));
-      return updatedUser;
+      try {
+        await client.from('profiles').upsert(updatedUser.toJson());
+      } catch (_) {}
     }
+    return updatedUser;
+  }
+
+  // Reset User Level & XP back to Level 1 (0 XP) for Day 1 Fresh Start
+  Future<UserModel> resetUserXpToDayOne(UserModel currentUser) async {
+    final resetUser = currentUser.copyWith(
+      level: 1,
+      experience: 0,
+    );
+    await updateProfile(resetUser);
+    return resetUser;
   }
 
   // Sign out

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../app/constants/app_constants.dart';
@@ -8,13 +7,15 @@ import '../models/task_model.dart';
 
 class TaskService {
   static const String _localTasksKey = 'solo_level_local_tasks';
-  static const String _lastResetKey = 'solo_level_last_reset_date';
+  static const String _lastResetDateKey = 'solo_level_last_reset_date';
 
-  // Check and reset daily tasks if a new day has arrived
+  // Check and reset ONLY daily habit tasks (S-Rank & Plan tasks NEVER reset)
   Future<void> checkAndResetDailyTasks(String userId) async {
     final prefs = await SharedPreferences.getInstance();
-    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final lastReset = prefs.getString(_lastResetKey);
+    final now = DateTime.now();
+    final todayStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final lastReset = prefs.getString(_lastResetDateKey);
 
     if (lastReset != todayStr) {
       final client = SupabaseConfig.client;
@@ -23,7 +24,9 @@ class TaskService {
           await client
               .from('tasks')
               .update({'is_completed': false})
-              .eq('user_id', userId);
+              .eq('user_id', userId)
+              .isFilter('plan_id', null)
+              .neq('priority', AppConstants.prioritySRank);
         } catch (_) {}
       }
 
@@ -31,13 +34,18 @@ class TaskService {
       if (tasksJson.isNotEmpty) {
         final updatedList = tasksJson.map((item) {
           final map = jsonDecode(item) as Map<String, dynamic>;
-          map['is_completed'] = false;
+          final priority = map['priority'] as String?;
+          final planId = map['plan_id'] as String?;
+          // Only reset if NOT S-Rank and NOT part of a plan
+          if (priority != AppConstants.prioritySRank && planId == null) {
+            map['is_completed'] = false;
+          }
           return jsonEncode(map);
         }).toList();
         await prefs.setStringList(_localTasksKey, updatedList);
       }
 
-      await prefs.setString(_lastResetKey, todayStr);
+      await prefs.setString(_lastResetDateKey, todayStr);
     }
   }
 
@@ -174,6 +182,29 @@ class TaskService {
         return map['plan_id'] == planId;
       });
       await prefs.setStringList(_localTasksKey, tasksJson);
+    }
+  }
+
+  // Reset all tasks to uncompleted status for user
+  Future<void> resetAllTaskCompletions(String userId) async {
+    final client = SupabaseConfig.client;
+    if (client != null) {
+      try {
+        await client
+            .from('tasks')
+            .update({'is_completed': false})
+            .eq('user_id', userId);
+      } catch (_) {}
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
+    if (tasksJson.isNotEmpty) {
+      final updatedList = tasksJson.map((item) {
+        final map = jsonDecode(item) as Map<String, dynamic>;
+        map['is_completed'] = false;
+        return jsonEncode(map);
+      }).toList();
+      await prefs.setStringList(_localTasksKey, updatedList);
     }
   }
 }

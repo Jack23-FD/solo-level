@@ -405,7 +405,9 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
           children: [
             // Plan Info Header RpgCard
             RpgCard(
-              systemTitle: 'PLAN METRICS // ID#${plan.id.substring(0, 6)}',
+              systemTitle: plan.isSRank
+                  ? 'S-RANK PLAN // PERMANENT GOAL'
+                  : 'PLAN METRICS // ID#${plan.id.length >= 6 ? plan.id.substring(0, 6) : plan.id}',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

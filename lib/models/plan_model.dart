@@ -21,7 +21,8 @@ class PlanModel {
 
   bool get isSRank {
     final s = stage.trim().toUpperCase();
-    return s == 'S-RANK' || s == 'SRANK' || s == 'S_RANK';
+    if (s == 'S-RANK' || s == 'SRANK' || s == 'S_RANK') return true;
+    return durationInDays > 365 || endDate.year >= 2090;
   }
 
   int get durationInDays {

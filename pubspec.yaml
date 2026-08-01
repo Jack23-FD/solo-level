@@ -58,6 +58,9 @@ flutter:
     - assets/lottie/
     - assets/audio/
     - assets/audio/level_up.mp3
+    - assets/audio/page.mp3
+    - assets/audio/page.wav
+    - assets/audio/loadingpage.mp3
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -1,5 +1,6 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/task_model.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
@@ -16,10 +17,16 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  void _safeNotifyListeners() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
+  }
+
   // Initialize and check current session
   Future<void> checkAuthStatus() async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
     try {
       _isLoggedIn = await _authService.isLoggedIn();
       if (_isLoggedIn) {
@@ -27,6 +34,7 @@ class AuthProvider with ChangeNotifier {
           const Duration(seconds: 3),
           onTimeout: () => null,
         );
+        _currentUser ??= await _authService.getProfile();
         if (_currentUser == null) {
           _isLoggedIn = false;
         }
@@ -36,7 +44,7 @@ class AuthProvider with ChangeNotifier {
       _currentUser = null;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -154,5 +162,41 @@ class AuthProvider with ChangeNotifier {
     _authService.updateProfile(updated).catchError((_) => updated);
 
     return didLevelUp;
+  }
+
+  // Sync user XP with completed task rewards if user profile is out of sync
+  Future<void> syncXpWithCompletedTasks(List<TaskModel> tasks) async {
+    if (_currentUser == null) return;
+
+    int totalCompletedTaskXp = 0;
+    for (final task in tasks) {
+      if (task.isCompleted) {
+        totalCompletedTaskXp += task.xpReward;
+      }
+    }
+
+    int currentStoredTotalXp =
+        ((_currentUser!.level - 1) * 1000) + _currentUser!.experience;
+
+    if (totalCompletedTaskXp > currentStoredTotalXp) {
+      int newLevel = 1 + (totalCompletedTaskXp ~/ 1000);
+      int newXp = totalCompletedTaskXp % 1000;
+
+      final updated = _currentUser!.copyWith(
+        level: newLevel,
+        experience: newXp,
+      );
+
+      _currentUser = updated;
+      notifyListeners();
+      await _authService.updateProfile(updated);
+    }
+  }
+
+  // Reset progress to Level 1, 0 XP for Day 1 fresh start
+  Future<void> resetProgressToDayOne() async {
+    if (_currentUser == null) return;
+    _currentUser = await _authService.resetUserXpToDayOne(_currentUser!);
+    notifyListeners();
   }
 }
