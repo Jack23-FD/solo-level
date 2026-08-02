@@ -9,60 +9,89 @@ class TaskService {
   static const String _localTasksKey = 'solo_level_local_tasks';
   static const String _lastResetDateKey = 'solo_level_last_reset_date';
 
-  // Check and reset ONLY daily habit tasks (S-Rank & Plan tasks NEVER reset)
-  Future<void> checkAndResetDailyTasks(String userId, {bool force = false}) async {
+  // Check if daily reset is needed (date change past 12 AM or forced)
+  Future<bool> _shouldResetDaily(bool force) async {
+    if (force) return true;
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
     final todayStr =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final lastReset = prefs.getString(_lastResetDateKey);
+    return lastReset != todayStr;
+  }
 
-    if (force || lastReset != todayStr) {
-      final client = SupabaseConfig.client;
-      if (client != null && client.auth.currentUser != null) {
-        try {
-          await client
-              .from('tasks')
-              .update({'is_completed': false})
-              .eq('user_id', userId)
-              .neq('priority', AppConstants.prioritySRank);
-        } catch (_) {}
-      }
+  // Record that reset was performed today
+  Future<void> _markResetDoneToday() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    await prefs.setString(_lastResetDateKey, todayStr);
+  }
 
-      final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
-      if (tasksJson.isNotEmpty) {
-        final updatedList = tasksJson.map((item) {
-          final map = jsonDecode(item) as Map<String, dynamic>;
-          final priority = map['priority'] as String?;
-          final planId = map['plan_id'] as String?;
-          // Only reset if NOT S-Rank and NOT part of a plan
-          if (priority != AppConstants.prioritySRank && planId == null) {
-            map['is_completed'] = false;
-          }
-          return jsonEncode(map);
-        }).toList();
-        await prefs.setStringList(_localTasksKey, updatedList);
-      }
+  // Check and reset ONLY daily habit tasks (S-Rank & Plan tasks NEVER reset)
+  Future<void> checkAndResetDailyTasks(String userId, {bool force = false}) async {
+    final bool needsReset = await _shouldResetDaily(force);
+    if (!needsReset) return;
 
-      await prefs.setString(_lastResetDateKey, todayStr);
+    final client = SupabaseConfig.client;
+    if (client != null) {
+      try {
+        await client
+            .from('tasks')
+            .update({'is_completed': false})
+            .eq('user_id', userId)
+            .neq('priority', AppConstants.prioritySRank);
+      } catch (_) {}
     }
+
+    final prefs = await SharedPreferences.getInstance();
+    final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
+    if (tasksJson.isNotEmpty) {
+      final updatedList = tasksJson.map((item) {
+        final map = jsonDecode(item) as Map<String, dynamic>;
+        final priority = map['priority'] as String?;
+        final planId = map['plan_id'] as String?;
+        // Only reset if NOT S-Rank and NOT part of a plan
+        if (priority != AppConstants.prioritySRank && planId == null) {
+          map['is_completed'] = false;
+        }
+        return jsonEncode(map);
+      }).toList();
+      await prefs.setStringList(_localTasksKey, updatedList);
+    }
+
+    await _markResetDoneToday();
   }
 
   // Get tasks for user (or filtered by plan)
-  Future<List<TaskModel>> getTasks(String userId, {String? planId}) async {
-    await checkAndResetDailyTasks(userId);
+  Future<List<TaskModel>> getTasks(String userId, {String? planId, bool forceReset = false}) async {
+    final bool needsReset = await _shouldResetDaily(forceReset);
+
+    List<TaskModel> tasks = [];
     final client = SupabaseConfig.client;
     if (client != null) {
-      var query = client.from('tasks').select().eq('user_id', userId);
-      if (planId != null) {
-        query = query.eq('plan_id', planId);
-      }
-      final data = await query.order('created_at', ascending: false);
-      return (data as List).map((item) => TaskModel.fromJson(item)).toList();
-    } else {
+      try {
+        var query = client.from('tasks').select().eq('user_id', userId);
+        if (planId != null) {
+          query = query.eq('plan_id', planId);
+        }
+        final data = await query.order('created_at', ascending: false);
+        tasks = (data as List).map((item) => TaskModel.fromJson(item)).toList();
+      } catch (_) {}
+    }
+
+    if (tasks.isEmpty) {
       final prefs = await SharedPreferences.getInstance();
       final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
-      if (tasksJson.isEmpty) {
+      if (tasksJson.isNotEmpty) {
+        tasks = tasksJson
+            .map((e) => TaskModel.fromJson(jsonDecode(e)))
+            .toList();
+        if (planId != null) {
+          tasks = tasks.where((t) => t.planId == planId).toList();
+        }
+      } else {
         // Initial sample quests for immediate RPG experience
         final defaultTasks = [
           TaskModel(
@@ -88,23 +117,50 @@ class TaskService {
             title: 'Daily Workout Quest',
             description: '100 Push-ups, 100 Sit-ups, 10km Run.',
             priority: AppConstants.priorityMedium,
-            isCompleted: true,
+            isCompleted: false,
           ),
         ];
         await prefs.setStringList(
           _localTasksKey,
           defaultTasks.map((e) => jsonEncode(e.toJson())).toList(),
         );
-        return defaultTasks;
+        tasks = defaultTasks;
       }
-      List<TaskModel> list = tasksJson
-          .map((e) => TaskModel.fromJson(jsonDecode(e)))
-          .toList();
-      if (planId != null) {
-        list = list.where((t) => t.planId == planId).toList();
-      }
-      return list;
     }
+
+    // GUARANTEE: If a 12 AM reset is due today, reset all daily habit tasks to uncompleted!
+    if (needsReset) {
+      tasks = tasks.map((t) {
+        if (t.priority != AppConstants.prioritySRank && t.planId == null) {
+          return t.copyWith(isCompleted: false);
+        }
+        return t;
+      }).toList();
+
+      // Persist the reset list back to SharedPreferences and Supabase
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        _localTasksKey,
+        tasks.map((e) => jsonEncode(e.toJson())).toList(),
+      );
+
+      if (client != null) {
+        for (final t in tasks) {
+          if (t.priority != AppConstants.prioritySRank && t.planId == null) {
+            try {
+              await client
+                  .from('tasks')
+                  .update({'is_completed': false})
+                  .eq('id', t.id);
+            } catch (_) {}
+          }
+        }
+      }
+
+      await _markResetDoneToday();
+    }
+
+    return tasks;
   }
 
   // Create task

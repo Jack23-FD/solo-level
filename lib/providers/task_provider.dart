@@ -64,8 +64,7 @@ class TaskProvider with ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      await _taskService.checkAndResetDailyTasks(userId, force: true);
-      _tasks = await _taskService.getTasks(userId);
+      _tasks = await _taskService.getTasks(userId, forceReset: true);
       if (authProvider != null) {
         await authProvider.syncXpWithCompletedTasks(_tasks);
       }
