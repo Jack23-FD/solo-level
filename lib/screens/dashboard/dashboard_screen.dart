@@ -23,15 +23,30 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   int _selectedNavIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadData();
+    }
   }
 
   void _loadData() {
@@ -421,13 +436,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ],
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.add_circle,
-                            color: AppColors.primaryGlow,
-                            size: 28,
-                          ),
-                          onPressed: () => _showAddQuestModal(context),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.restore_page_outlined,
+                                color: AppColors.textMuted,
+                                size: 22,
+                              ),
+                              tooltip: 'Force Reset Daily Quests (12 AM)',
+                              onPressed: () async {
+                                final authProvider = Provider.of<AuthProvider>(
+                                  context,
+                                  listen: false,
+                                );
+                                final user = authProvider.currentUser;
+                                if (user != null) {
+                                  await Provider.of<TaskProvider>(
+                                    context,
+                                    listen: false,
+                                  ).forceResetDailyTasks(
+                                    user.id,
+                                    authProvider: authProvider,
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'System Alert: 12 AM Daily Quests Reset Completed!',
+                                        ),
+                                        backgroundColor: AppColors.primaryGlow,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.add_circle,
+                                color: AppColors.primaryGlow,
+                                size: 28,
+                              ),
+                              onPressed: () => _showAddQuestModal(context),
+                            ),
+                          ],
                         ),
                       ],
                     ),

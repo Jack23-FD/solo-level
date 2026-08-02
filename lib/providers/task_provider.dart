@@ -56,6 +56,27 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
+  Future<void> forceResetDailyTasks(
+    String userId, {
+    AuthProvider? authProvider,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _taskService.checkAndResetDailyTasks(userId, force: true);
+      _tasks = await _taskService.getTasks(userId);
+      if (authProvider != null) {
+        await authProvider.syncXpWithCompletedTasks(_tasks);
+      }
+    } catch (e) {
+      _errorMessage = 'Failed to force reset daily quests: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<TaskModel?> addTask({
     required String userId,
     String? planId,

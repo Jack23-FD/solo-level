@@ -10,22 +10,21 @@ class TaskService {
   static const String _lastResetDateKey = 'solo_level_last_reset_date';
 
   // Check and reset ONLY daily habit tasks (S-Rank & Plan tasks NEVER reset)
-  Future<void> checkAndResetDailyTasks(String userId) async {
+  Future<void> checkAndResetDailyTasks(String userId, {bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
     final todayStr =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final lastReset = prefs.getString(_lastResetDateKey);
 
-    if (lastReset != todayStr) {
+    if (force || lastReset != todayStr) {
       final client = SupabaseConfig.client;
-      if (client != null) {
+      if (client != null && client.auth.currentUser != null) {
         try {
           await client
               .from('tasks')
               .update({'is_completed': false})
               .eq('user_id', userId)
-              .isFilter('plan_id', null)
               .neq('priority', AppConstants.prioritySRank);
         } catch (_) {}
       }
