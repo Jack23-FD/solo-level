@@ -137,6 +137,8 @@ class TaskProvider with ChangeNotifier {
     _taskService.updateTask(updatedTask).then((_) {
       if (updatedIsCompleted) {
         _taskService.recordTaskCompletion(task.id);
+      } else {
+        _taskService.setTaskCompletionOnDate(task.id, DateTime.now(), false);
       }
     }).catchError((e) {
       _errorMessage = 'Failed to update quest status: $e';

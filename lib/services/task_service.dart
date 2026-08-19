@@ -260,6 +260,8 @@ class TaskService {
       } catch (_) {}
     }
     final prefs = await SharedPreferences.getInstance();
+    
+    // 1. Reset tasks
     final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
     if (tasksJson.isNotEmpty) {
       final updatedList = tasksJson.map((item) {
@@ -268,6 +270,14 @@ class TaskService {
         return jsonEncode(map);
       }).toList();
       await prefs.setStringList(_localTasksKey, updatedList);
+    }
+    
+    // 2. Wipe ALL task completion history logs (Analysis Data)
+    final keys = prefs.getKeys();
+    for (String key in keys) {
+      if (key.startsWith('${_taskHistoryKey}_')) {
+        await prefs.remove(key);
+      }
     }
   }
   static const String _taskHistoryKey = 'solo_level_task_history';

@@ -10,6 +10,7 @@ class AudioService {
 
   static DateTime? _lastPlayTime;
   static DateTime? _lastPageSoundTime;
+  static DateTime? _lastLoadingSoundTime;
 
   /// Play level up sound effect
   static Future<void> playLevelUp() async {
@@ -25,6 +26,23 @@ class AudioService {
       await levelPlayer.play(AssetSource('audio/level_up.mp3'), volume: 1.0);
     } catch (e) {
       debugPrint('Audio play error (level_up.mp3): $e');
+    }
+  }
+
+  /// Play loading screen sound effect
+  static Future<void> playLoadingScreen() async {
+    final now = DateTime.now();
+    if (_lastLoadingSoundTime != null &&
+        now.difference(_lastLoadingSoundTime!) < const Duration(seconds: 2)) {
+      return;
+    }
+    _lastLoadingSoundTime = now;
+
+    try {
+      await levelPlayer.stop(); // Reuse levelPlayer or use a separate one
+      await levelPlayer.play(AssetSource('audio/loadingpage.mp3'), volume: 1.0);
+    } catch (e) {
+      debugPrint('Audio play error (loadingpage.mp3): $e');
     }
   }
 

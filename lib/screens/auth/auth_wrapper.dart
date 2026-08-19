@@ -17,7 +17,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    AudioService.playLevelUp();
+    AudioService.playLoadingScreen();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAuth();
     });
