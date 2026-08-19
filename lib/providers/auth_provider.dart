@@ -19,14 +19,7 @@ class AuthProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   void _safeNotifyListeners() {
-    final binding = WidgetsBinding.instance;
-    if (binding.schedulerPhase == SchedulerPhase.persistentCallbacks) {
-      binding.addPostFrameCallback((_) {
-        notifyListeners();
-      });
-    } else {
-      notifyListeners();
-    }
+    if (hasListeners) notifyListeners();
   }
 
   // Initialize and check current session
@@ -36,11 +29,11 @@ class AuthProvider with ChangeNotifier {
     try {
       _isLoggedIn = await _authService.isLoggedIn();
       if (_isLoggedIn) {
+        // Single call with a 5-second timeout — no infinite retry on slow networks
         _currentUser = await _authService.getProfile().timeout(
-          const Duration(seconds: 3),
+          const Duration(seconds: 5),
           onTimeout: () => null,
         );
-        _currentUser ??= await _authService.getProfile();
         if (_currentUser == null) {
           _isLoggedIn = false;
         }
@@ -62,7 +55,7 @@ class AuthProvider with ChangeNotifier {
   }) async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
     try {
       _currentUser = await _authService.register(
         email: email,
@@ -92,7 +85,7 @@ class AuthProvider with ChangeNotifier {
   Future<bool> login({required String email, required String password}) async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
     try {
       _currentUser = await _authService.login(email: email, password: password);
       _isLoggedIn = true;
@@ -110,14 +103,14 @@ class AuthProvider with ChangeNotifier {
       return false;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   // Logout
   Future<void> logout() async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
     try {
       await _authService.logout();
       _currentUser = null;
@@ -203,6 +196,6 @@ class AuthProvider with ChangeNotifier {
   Future<void> resetProgressToDayOne() async {
     if (_currentUser == null) return;
     _currentUser = await _authService.resetUserXpToDayOne(_currentUser!);
-    notifyListeners();
+    _safeNotifyListeners();
   }
 }

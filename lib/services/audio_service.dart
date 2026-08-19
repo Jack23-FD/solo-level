@@ -3,11 +3,9 @@ import 'package:flutter/foundation.dart';
 
 class AudioService {
   static AudioPlayer? _levelPlayer;
-  static AudioPlayer? _splashPlayer;
   static AudioPlayer? _pagePlayer;
 
   static AudioPlayer get levelPlayer => _levelPlayer ??= AudioPlayer();
-  static AudioPlayer get splashPlayer => _splashPlayer ??= AudioPlayer();
   static AudioPlayer get pagePlayer => _pagePlayer ??= AudioPlayer();
 
   static DateTime? _lastPlayTime;
@@ -28,23 +26,6 @@ class AudioService {
     } catch (e) {
       debugPrint('Audio play error (level_up.mp3): $e');
     }
-  }
-
-  /// Play splash screen loading sound (loadingpage.mp3)
-  static Future<void> playSplashLoading() async {
-    try {
-      await splashPlayer.stop();
-      await splashPlayer.play(AssetSource('audio/loadingpage.mp3'), volume: 1.0);
-    } catch (e) {
-      debugPrint('Audio play error (loadingpage.mp3): $e');
-    }
-  }
-
-  /// Stop splash screen loading sound
-  static Future<void> stopSplashLoading() async {
-    try {
-      await splashPlayer.stop();
-    } catch (_) {}
   }
 
   /// Play page transition sound effect (page.mp3 / page.wav)

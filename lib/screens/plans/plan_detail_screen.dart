@@ -27,15 +27,15 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final user = Provider.of<AuthProvider>(
-        context,
-        listen: false,
-      ).currentUser;
-      if (user != null) {
-        Provider.of<TaskProvider>(
-          context,
-          listen: false,
-        ).fetchTasks(user.id, planId: widget.planId);
+      final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+      // Only fetch if there are no tasks loaded yet (cold start / direct navigation).
+      // If tasks are already loaded, getPlanTasks() in build() will filter them.
+      // Avoids replacing the shared global task list and causing rebuild storms.
+      if (taskProvider.tasks.isEmpty) {
+        final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
+        if (user != null) {
+          taskProvider.fetchTasks(user.id);
+        }
       }
     });
   }

@@ -2,12 +2,12 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
+import '../../screens/auth/auth_wrapper.dart';
 import '../../screens/dashboard/dashboard_screen.dart';
 import '../../screens/plans/create_plan_screen.dart';
 import '../../screens/plans/plan_detail_screen.dart';
 import '../../screens/plans/plan_list_screen.dart';
 import '../../screens/profile/profile_screen.dart';
-import '../../screens/splash/splash_screen.dart';
 import '../../services/audio_service.dart';
 
 class PageSoundObserver extends NavigatorObserver {
@@ -36,12 +36,12 @@ class PageSoundObserver extends NavigatorObserver {
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/splash',
+    initialLocation: '/',
     observers: [PageSoundObserver()],
     routes: [
       GoRoute(
-        path: '/splash',
-        builder: (context, state) => const SplashScreen(),
+        path: '/',
+        builder: (context, state) => const AuthWrapper(),
       ),
       GoRoute(
         path: '/login',

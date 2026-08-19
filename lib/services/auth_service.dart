@@ -50,11 +50,12 @@ class AuthService {
               .from('profiles')
               .select()
               .eq('id', user.id)
-              .single();
+              .single()
+              .timeout(const Duration(seconds: 5));
           profile = UserModel.fromJson(profileData);
         } catch (_) {
           profile = UserModel(id: user.id, username: username);
-          await client.from('profiles').upsert(profile.toJson());
+          await client.from('profiles').upsert(profile.toJson()).timeout(const Duration(seconds: 5));
         }
         await _saveSession(profile);
         return profile;
@@ -105,10 +106,15 @@ class AuthService {
     final client = SupabaseConfig.client;
     if (client != null) {
       try {
-        final AuthResponse res = await client.auth.signInWithPassword(
-          email: email,
-          password: password,
-        );
+        final AuthResponse res = await client.auth
+            .signInWithPassword(
+              email: email,
+              password: password,
+            )
+            .timeout(
+              const Duration(seconds: 10),
+              onTimeout: () => throw Exception('Login timed out. Check your connection.'),
+            );
         final user = res.user;
         if (user == null) {
           throw Exception('Login failed. Check your credentials.');
@@ -120,14 +126,15 @@ class AuthService {
               .from('profiles')
               .select()
               .eq('id', user.id)
-              .single();
+              .single()
+              .timeout(const Duration(seconds: 5));
           profile = UserModel.fromJson(profileData);
         } catch (_) {
           final username =
               (user.userMetadata?['username'] as String?) ??
               email.split('@').first;
           profile = UserModel(id: user.id, username: username);
-          await client.from('profiles').upsert(profile.toJson());
+          await client.from('profiles').upsert(profile.toJson()).timeout(const Duration(seconds: 5));
         }
         await _saveSession(profile);
         return profile;
@@ -144,7 +151,8 @@ class AuthService {
         final errStr = e.toString();
         if (errStr.contains('SocketException') ||
             errStr.contains('Failed host lookup') ||
-            errStr.contains('ClientException')) {
+            errStr.contains('ClientException') ||
+            errStr.contains('timed out')) {
           return _loginLocally(email: email);
         }
         rethrow;
@@ -211,7 +219,7 @@ class AuthService {
         final newProfile = UserModel(id: user.id, username: username, level: 1, experience: 250);
         await prefs.setString(_localUserKey, jsonEncode(newProfile.toJson()));
         try {
-          await client.from('profiles').upsert(newProfile.toJson());
+          await client.from('profiles').upsert(newProfile.toJson()).timeout(const Duration(seconds: 5));
         } catch (_) {}
         return newProfile;
       }
@@ -233,10 +241,11 @@ class AuthService {
         await client
             .from('profiles')
             .update(updatedUser.toJson())
-            .eq('id', updatedUser.id);
+            .eq('id', updatedUser.id)
+            .timeout(const Duration(seconds: 5));
       } catch (_) {
         try {
-          await client.from('profiles').upsert(updatedUser.toJson());
+          await client.from('profiles').upsert(updatedUser.toJson()).timeout(const Duration(seconds: 5));
         } catch (_) {}
       }
     }
@@ -249,7 +258,26 @@ class AuthService {
       level: 1,
       experience: 0,
     );
-    await updateProfile(resetUser);
+
+    // Save to local SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_localUserKey, jsonEncode(resetUser.toJson()));
+
+    // Force update Supabase profiles table synchronously
+    final client = SupabaseConfig.client;
+    if (client != null && client.auth.currentUser != null) {
+      try {
+        await client
+            .from('profiles')
+            .update({'level': 1, 'experience': 0})
+            .eq('id', currentUser.id)
+            .timeout(const Duration(seconds: 5));
+      } catch (_) {
+        try {
+          await client.from('profiles').upsert(resetUser.toJson()).timeout(const Duration(seconds: 5));
+        } catch (_) {}
+      }
+    }
     return resetUser;
   }
 

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:uuid/uuid.dart';
 import '../app/constants/app_constants.dart';
 import '../models/plan_model.dart';
@@ -45,14 +45,18 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
     try {
       _tasks = await _taskService.getTasks(userId);
-      if (authProvider != null) {
-        await authProvider.syncXpWithCompletedTasks(_tasks);
-      }
     } catch (e) {
       _errorMessage = 'Failed to load quests: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
+      // Sync XP after this provider has finished notifying — avoids
+      // re-entrant build loops when AuthProvider also notifies listeners.
+      if (authProvider != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          authProvider.syncXpWithCompletedTasks(_tasks);
+        });
+      }
     }
   }
 
@@ -65,14 +69,16 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
     try {
       _tasks = await _taskService.getTasks(userId, forceReset: true);
-      if (authProvider != null) {
-        await authProvider.syncXpWithCompletedTasks(_tasks);
-      }
     } catch (e) {
       _errorMessage = 'Failed to force reset daily quests: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
+      if (authProvider != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          authProvider.syncXpWithCompletedTasks(_tasks);
+        });
+      }
     }
   }
 

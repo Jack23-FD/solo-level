@@ -7,26 +7,36 @@ import '../models/task_model.dart';
 
 class TaskService {
   static const String _localTasksKey = 'solo_level_local_tasks';
-  static const String _lastResetDateKey = 'solo_level_last_reset_date';
+  static const String _lastResetTimeKey = 'solo_level_last_reset_timestamp';
+  static const int resetIntervalMinutes = 5; // 5-minute interval for testing
 
-  // Check if daily reset is needed (date change past 12 AM or forced)
+  // Check if task reset is needed (5 minutes passed since last reset or forced)
   Future<bool> _shouldResetDaily(bool force) async {
     if (force) return true;
     final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    final todayStr =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    final lastReset = prefs.getString(_lastResetDateKey);
-    return lastReset != todayStr;
+    final lastResetMs = prefs.getInt(_lastResetTimeKey);
+    if (lastResetMs == null) return true;
+    final lastReset = DateTime.fromMillisecondsSinceEpoch(lastResetMs);
+    final difference = DateTime.now().difference(lastReset);
+    return difference.inSeconds >= (resetIntervalMinutes * 60);
   }
 
-  // Record that reset was performed today
+  // Record that reset was performed
   Future<void> _markResetDoneToday() async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
-    final todayStr =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    await prefs.setString(_lastResetDateKey, todayStr);
+    await prefs.setInt(_lastResetTimeKey, now.millisecondsSinceEpoch);
+  }
+
+  // Calculate remaining duration until the next scheduled reset
+  Future<Duration> getTimeUntilNextReset() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastResetMs = prefs.getInt(_lastResetTimeKey);
+    if (lastResetMs == null) return Duration.zero;
+    final lastReset = DateTime.fromMillisecondsSinceEpoch(lastResetMs);
+    final nextReset = lastReset.add(Duration(minutes: resetIntervalMinutes));
+    final diff = nextReset.difference(DateTime.now());
+    return diff.isNegative ? Duration.zero : diff;
   }
 
   // Check and reset ONLY daily habit tasks (S-Rank & Plan tasks NEVER reset)
@@ -51,9 +61,8 @@ class TaskService {
       final updatedList = tasksJson.map((item) {
         final map = jsonDecode(item) as Map<String, dynamic>;
         final priority = map['priority'] as String?;
-        final planId = map['plan_id'] as String?;
-        // Only reset if NOT S-Rank and NOT part of a plan
-        if (priority != AppConstants.prioritySRank && planId == null) {
+        // Only reset if NOT S-Rank
+        if (priority != AppConstants.prioritySRank) {
           map['is_completed'] = false;
         }
         return jsonEncode(map);
@@ -128,10 +137,10 @@ class TaskService {
       }
     }
 
-    // GUARANTEE: If a 12 AM reset is due today, reset all daily habit tasks to uncompleted!
+    // GUARANTEE: If reset interval is reached, reset all non-S-Rank tasks to uncompleted!
     if (needsReset) {
       tasks = tasks.map((t) {
-        if (t.priority != AppConstants.prioritySRank && t.planId == null) {
+        if (t.priority != AppConstants.prioritySRank) {
           return t.copyWith(isCompleted: false);
         }
         return t;
@@ -144,17 +153,15 @@ class TaskService {
         tasks.map((e) => jsonEncode(e.toJson())).toList(),
       );
 
+      // Single batch update instead of N individual queries
       if (client != null) {
-        for (final t in tasks) {
-          if (t.priority != AppConstants.prioritySRank && t.planId == null) {
-            try {
-              await client
-                  .from('tasks')
-                  .update({'is_completed': false})
-                  .eq('id', t.id);
-            } catch (_) {}
-          }
-        }
+        try {
+          await client
+              .from('tasks')
+              .update({'is_completed': false})
+              .eq('user_id', userId)
+              .neq('priority', AppConstants.prioritySRank);
+        } catch (_) {}
       }
 
       await _markResetDoneToday();

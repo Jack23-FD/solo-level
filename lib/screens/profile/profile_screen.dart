@@ -209,12 +209,12 @@ class ProfileScreen extends StatelessWidget {
                       );
 
                       if (confirm == true) {
-                        await authProvider.resetProgressToDayOne();
                         await taskProvider.resetAllTaskCompletions(user.id);
+                        await authProvider.resetProgressToDayOne();
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('System Reset Complete: Welcome to Day 1, Level 1 Hunter!'),
+                              content: Text('System Reset Complete: E-Rank Hunter (Level 1, 0 XP)!'),
                               backgroundColor: AppColors.primaryGlow,
                             ),
                           );

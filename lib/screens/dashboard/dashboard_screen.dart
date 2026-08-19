@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +16,7 @@ import '../../widgets/task_card.dart';
 import '../plans/plan_list_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../services/audio_service.dart';
+import '../../services/task_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -26,6 +28,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   int _selectedNavIndex = 0;
+  Timer? _oneShotResetTimer;
 
   @override
   void initState() {
@@ -38,24 +41,54 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
+    _oneShotResetTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
+  DateTime? _lastLoadTime;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _loadData();
+      // Debounce: only reload if 3+ seconds have passed since last load
+      final now = DateTime.now();
+      if (_lastLoadTime == null ||
+          now.difference(_lastLoadTime!) > const Duration(seconds: 3)) {
+        _loadData();
+      }
     }
   }
 
-  void _loadData() {
+  void _scheduleNextResetTimer() async {
+    _oneShotResetTimer?.cancel();
+    final taskService = TaskService();
+    final remaining = await taskService.getTimeUntilNextReset();
+
+    if (remaining <= Duration.zero) {
+      // Reset is due right now
+      _loadData();
+    } else {
+      // Schedule single exact one-shot timer to fire when reset is due
+      _oneShotResetTimer = Timer(remaining, () {
+        _loadData();
+      });
+    }
+  }
+
+  Future<void> _loadData() async {
+    _lastLoadTime = DateTime.now();
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.currentUser;
     if (user != null) {
-      Provider.of<TaskProvider>(context, listen: false)
-          .fetchTasks(user.id, authProvider: authProvider);
-      Provider.of<PlanProvider>(context, listen: false).fetchPlans(user.id);
+      await Future.wait([
+        Provider.of<TaskProvider>(context, listen: false)
+            .fetchTasks(user.id, authProvider: authProvider),
+        Provider.of<PlanProvider>(context, listen: false).fetchPlans(user.id),
+      ]);
+      if (mounted) {
+        _scheduleNextResetTimer();
+      }
     }
   }
 
@@ -249,9 +282,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (completedXpSum > storedTotalXp) {
         effectiveLevel = 1 + (completedXpSum ~/ 1000);
         effectiveXp = completedXpSum % 1000;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          authProvider.syncXpWithCompletedTasks(displayQuests);
-        });
+        // NOTE: XP sync is handled by TaskProvider.fetchTasks() after data loads.
+        // Do NOT call syncXpWithCompletedTasks here — it causes infinite rebuild loops.
       }
     }
 
@@ -444,7 +476,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 color: AppColors.textMuted,
                                 size: 22,
                               ),
-                              tooltip: 'Force Reset Daily Quests (12 AM)',
+                              tooltip: 'Force Reset Daily Quests (5-Min Testing)',
                               onPressed: () async {
                                 final authProvider = Provider.of<AuthProvider>(
                                   context,
@@ -463,7 +495,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
-                                          'System Alert: 12 AM Daily Quests Reset Completed!',
+                                          'System Alert: 5-Min Daily Quests Reset Completed!',
                                         ),
                                         backgroundColor: AppColors.primaryGlow,
                                       ),
