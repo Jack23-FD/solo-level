@@ -13,6 +13,7 @@ import '../../widgets/level_up_dialog.dart';
 import '../../widgets/progress_bar.dart';
 import '../../widgets/rpg_card.dart';
 import '../../widgets/task_card.dart';
+import '../analysis/analysis_screen.dart';
 import '../plans/plan_list_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../services/audio_service.dart';
@@ -30,6 +31,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _selectedNavIndex = 0;
   Timer? _oneShotResetTimer;
 
+  DateTime _selectedDashboardDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  Map<String, bool> _completedOnDate = {};
+  bool _isLoadingHistory = false;
+  final ScrollController _dateScrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -39,9 +45,38 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
+  void _scrollToToday() {
+    if (!_dateScrollController.hasClients) return;
+    
+    final todayIndex = 3; // Fixed 3 days offset
+    final screenWidth = MediaQuery.of(context).size.width;
+    final targetOffset = (todayIndex * 63.0) - (screenWidth / 2) + (63.0 / 2);
+    _dateScrollController.jumpTo(targetOffset.clamp(0.0, _dateScrollController.position.maxScrollExtent));
+  }
+
+  Future<void> _loadHistoryForDate() async {
+    setState(() => _isLoadingHistory = true);
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final tasks = taskProvider.tasks;
+    final taskService = TaskService();
+    
+    final Map<String, bool> stats = {};
+    for (final task in tasks) {
+      stats[task.id] = await taskService.wasTaskCompletedOnDate(task.id, _selectedDashboardDate);
+    }
+    
+    if (mounted) {
+      setState(() {
+        _completedOnDate = stats;
+        _isLoadingHistory = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _oneShotResetTimer?.cancel();
+    _dateScrollController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -66,12 +101,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     final remaining = await taskService.getTimeUntilNextReset();
 
     if (remaining <= Duration.zero) {
-      // Reset is due right now
-      _loadData();
+      // If remaining is STILL zero after we just loaded data, it means the reset 
+      // likely failed (e.g. database error). Schedule a retry in 10 seconds 
+      // instead of immediately to prevent an infinite loop crash!
+      _oneShotResetTimer = Timer(const Duration(seconds: 10), () {
+        if (mounted) _loadData();
+      });
     } else {
       // Schedule single exact one-shot timer to fire when reset is due
       _oneShotResetTimer = Timer(remaining, () {
-        _loadData();
+        if (mounted) _loadData();
       });
     }
   }
@@ -88,6 +127,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       ]);
       if (mounted) {
         _scheduleNextResetTimer();
+        _loadHistoryForDate();
+        
+        // Ensure scroll view is populated with new data size before jumping
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToToday();
+        });
       }
     }
   }
@@ -268,6 +313,25 @@ class _DashboardScreenState extends State<DashboardScreen>
     final user = authProvider.currentUser;
     final displayQuests = taskProvider.getTodayQuests(planProvider.plans);
 
+    final todayStr = DateTime.now().toIso8601String().split('T').first;
+    final targetStr = _selectedDashboardDate.toIso8601String().split('T').first;
+    final isToday = todayStr == targetStr;
+
+    final visibleQuests = displayQuests.where((t) {
+      final createdStr = t.createdAt.toIso8601String().split('T').first;
+      return createdStr.compareTo(targetStr) <= 0;
+    }).toList();
+    
+    final now = DateTime.now();
+    // 3 days past, today, 3 days future
+    final minDate = now.subtract(const Duration(days: 3));
+    final maxDate = now.add(const Duration(days: 3));
+    
+    final minUtc = DateTime.utc(minDate.year, minDate.month, minDate.day);
+    final maxUtc = DateTime.utc(maxDate.year, maxDate.month, maxDate.day);
+    final todayUtc = DateTime.utc(now.year, now.month, now.day);
+    final scrollItemCount = 7; // Fixed 7 days
+    final scrollTodayIndex = 3; // 3 days offset from minDate
     int effectiveLevel = user?.level ?? 1;
     int effectiveXp = user?.experience ?? 0;
 
@@ -291,6 +355,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (_selectedNavIndex == 1) {
       bodyContent = const PlanListScreen();
     } else if (_selectedNavIndex == 2) {
+      bodyContent = const AnalysisScreen();
+    } else if (_selectedNavIndex == 3) {
       bodyContent = const ProfileScreen();
     } else {
       bodyContent = user == null
@@ -446,6 +512,64 @@ class _DashboardScreenState extends State<DashboardScreen>
                     const SizedBox(height: 24),
 
                     // QUESTS SECTION HEADER
+                    // Horizontal Date Picker
+                    SizedBox(
+                      height: 70,
+                      child: ListView.builder(
+                        controller: _dateScrollController,
+                        scrollDirection: Axis.horizontal,
+                        itemCount: scrollItemCount, 
+                        itemBuilder: (context, index) {
+                          final offset = index - scrollTodayIndex; // distance from today
+                          final utcDate = minUtc.add(Duration(days: index));
+                          final date = DateTime(utcDate.year, utcDate.month, utcDate.day);
+                          final isSelected = date.year == _selectedDashboardDate.year && date.month == _selectedDashboardDate.month && date.day == _selectedDashboardDate.day;
+                          final isFuture = offset > 0;
+                          final dayName = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][date.weekday - 1];
+                          
+                          return GestureDetector(
+                            onTap: () {
+                              if (isFuture) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Future dates are locked! Focus on the present.'),
+                                    backgroundColor: AppColors.systemWarningRed,
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                                return;
+                              }
+                              if (!isSelected) {
+                                setState(() => _selectedDashboardDate = date);
+                                _loadHistoryForDate();
+                              }
+                            },
+                            child: Container(
+                              width: 55,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.primaryGlow : AppColors.secondaryBackground.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.glassBorder),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(dayName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? AppColors.primaryBackground : AppColors.textMuted)),
+                                  const SizedBox(height: 4),
+                                  if (isFuture)
+                                    Icon(Icons.lock, size: 18, color: isSelected ? AppColors.primaryBackground : AppColors.textMuted)
+                                  else
+                                    Text('${date.day}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isSelected ? AppColors.primaryBackground : AppColors.textWhite)),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -457,9 +581,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                               size: 20,
                             ),
                             const SizedBox(width: 8),
-                            const Text(
-                              'TODAY\'S QUESTS',
-                              style: TextStyle(
+                            Text(
+                              isToday ? 'TODAY\'S QUESTS' : 'QUESTS: $targetStr',
+                              style: const TextStyle(
                                 color: AppColors.textWhite,
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -504,14 +628,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 }
                               },
                             ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.add_circle,
-                                color: AppColors.primaryGlow,
-                                size: 28,
+                            if (isToday)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.add_circle,
+                                  color: AppColors.primaryGlow,
+                                  size: 28,
+                                ),
+                                onPressed: () => _showAddQuestModal(context),
                               ),
-                              onPressed: () => _showAddQuestModal(context),
-                            ),
                           ],
                         ),
                       ],
@@ -520,7 +645,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     const SizedBox(height: 12),
 
                     // QUESTS LIST
-                    if (taskProvider.isLoading)
+                    if (taskProvider.isLoading || _isLoadingHistory)
                       const Center(
                         child: Padding(
                           padding: EdgeInsets.all(32.0),
@@ -529,7 +654,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           ),
                         ),
                       )
-                    else if (displayQuests.isEmpty)
+                    else if (visibleQuests.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(24),
                         width: double.infinity,
@@ -549,7 +674,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ),
                             const SizedBox(height: 12),
                             const Text(
-                              'NO ACTIVE QUESTS TODAY',
+                              'NO ACTIVE QUESTS FOR DATE',
                               style: TextStyle(
                                 color: AppColors.textWhite,
                                 fontWeight: FontWeight.bold,
@@ -557,9 +682,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              'Tap + above to accept new daily quests and gain XP.',
-                              style: TextStyle(
+                            Text(
+                              isToday ? 'Tap + above to accept new daily quests and gain XP.' : 'No quests were available on this date.',
+                              style: const TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 12,
                               ),
@@ -571,14 +696,25 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: displayQuests.length,
+                        itemCount: visibleQuests.length,
                         itemBuilder: (context, index) {
-                          final task = displayQuests[index];
+                          final task = visibleQuests[index];
+                          final isTaskCompletedForDate = isToday ? task.isCompleted : (_completedOnDate[task.id] ?? false);
+                          final displayTask = task.copyWith(isCompleted: isTaskCompletedForDate);
+                          
                           return TaskCard(
-                            task: task,
+                            task: displayTask,
                             onToggle: (val) async {
                               final didLevelUp = await taskProvider
-                                  .toggleTaskCompletion(task, authProvider);
+                                  .toggleTaskCompletionForDate(task, _selectedDashboardDate, authProvider, isTaskCompletedForDate);
+                                  
+                              if (!isToday && mounted) {
+                                // Update local map so UI reflects changes instantly for past dates
+                                setState(() {
+                                  _completedOnDate[task.id] = !isTaskCompletedForDate;
+                                });
+                              }
+                              
                               if (context.mounted && didLevelUp) {
                                 LevelUpDialog.show(
                                   context,
@@ -636,22 +772,33 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
                   ),
-                  const Flexible(
-                    child: Text(
-                      'SOLO-LEVELING ...',
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'SYSTEM DASHBOARD',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      Text(
+                        'DATE: $todayStr',
+                        style: const TextStyle(
+                          color: AppColors.primaryGlow,
+                          fontSize: 10,
+                          letterSpacing: 2.0,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
+              backgroundColor: AppColors.primaryBackground,
               actions: [
                 IconButton(
                   icon: const Icon(Icons.person, color: AppColors.primaryGlow),
                   onPressed: () {
-                    if (_selectedNavIndex != 2) {
+                    if (_selectedNavIndex != 3) {
                       AudioService.playPageChange();
-                      setState(() => _selectedNavIndex = 2);
+                      setState(() => _selectedNavIndex = 3);
                     }
                   },
                 ),
@@ -683,6 +830,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             icon: Icon(Icons.map_outlined),
             activeIcon: Icon(Icons.map, color: AppColors.primaryGlow),
             label: 'Plans',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.analytics_outlined),
+            activeIcon: Icon(Icons.analytics, color: AppColors.primaryGlow),
+            label: 'Analysis',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

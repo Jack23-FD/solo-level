@@ -19,7 +19,9 @@ class AuthProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   void _safeNotifyListeners() {
-    if (hasListeners) notifyListeners();
+    if (hasListeners) {
+      Future.microtask(() => notifyListeners());
+    }
   }
 
   // Initialize and check current session
@@ -61,7 +63,7 @@ class AuthProvider with ChangeNotifier {
         email: email,
         password: password,
         username: username,
-      );
+      ).timeout(const Duration(seconds: 15));
       _isLoggedIn = true;
       return true;
     } on AuthException catch (e) {
@@ -74,10 +76,13 @@ class AuthProvider with ChangeNotifier {
       return false;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
+      if (e.toString().contains('TimeoutException')) {
+        _errorMessage = 'Connection timed out. Check your network or Supabase config.';
+      }
       return false;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -87,7 +92,7 @@ class AuthProvider with ChangeNotifier {
     _errorMessage = null;
     _safeNotifyListeners();
     try {
-      _currentUser = await _authService.login(email: email, password: password);
+      _currentUser = await _authService.login(email: email, password: password).timeout(const Duration(seconds: 15));
       _isLoggedIn = true;
       return true;
     } on AuthException catch (e) {
@@ -100,6 +105,9 @@ class AuthProvider with ChangeNotifier {
       return false;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
+      if (e.toString().contains('TimeoutException')) {
+        _errorMessage = 'Connection timed out. Check your network or Supabase config.';
+      }
       return false;
     } finally {
       _isLoading = false;

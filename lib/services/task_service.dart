@@ -8,17 +8,20 @@ import '../models/task_model.dart';
 class TaskService {
   static const String _localTasksKey = 'solo_level_local_tasks';
   static const String _lastResetTimeKey = 'solo_level_last_reset_timestamp';
-  static const int resetIntervalMinutes = 5; // 5-minute interval for testing
-
-  // Check if task reset is needed (5 minutes passed since last reset or forced)
+  // Check if task reset is needed (Day has changed or forced)
   Future<bool> _shouldResetDaily(bool force) async {
     if (force) return true;
     final prefs = await SharedPreferences.getInstance();
     final lastResetMs = prefs.getInt(_lastResetTimeKey);
     if (lastResetMs == null) return true;
+    
     final lastReset = DateTime.fromMillisecondsSinceEpoch(lastResetMs);
-    final difference = DateTime.now().difference(lastReset);
-    return difference.inSeconds >= (resetIntervalMinutes * 60);
+    final now = DateTime.now();
+    
+    // Reset if it's a completely different day
+    return lastReset.year != now.year || 
+           lastReset.month != now.month || 
+           lastReset.day != now.day;
   }
 
   // Record that reset was performed
@@ -28,14 +31,12 @@ class TaskService {
     await prefs.setInt(_lastResetTimeKey, now.millisecondsSinceEpoch);
   }
 
-  // Calculate remaining duration until the next scheduled reset
+  // Calculate remaining duration until the next scheduled reset (Midnight tonight)
   Future<Duration> getTimeUntilNextReset() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lastResetMs = prefs.getInt(_lastResetTimeKey);
-    if (lastResetMs == null) return Duration.zero;
-    final lastReset = DateTime.fromMillisecondsSinceEpoch(lastResetMs);
-    final nextReset = lastReset.add(Duration(minutes: resetIntervalMinutes));
-    final diff = nextReset.difference(DateTime.now());
+    final now = DateTime.now();
+    // Next reset is exactly tomorrow at 00:00:00
+    final nextReset = DateTime(now.year, now.month, now.day + 1);
+    final diff = nextReset.difference(now);
     return diff.isNegative ? Duration.zero : diff;
   }
 
@@ -268,5 +269,66 @@ class TaskService {
       }).toList();
       await prefs.setStringList(_localTasksKey, updatedList);
     }
+  }
+  static const String _taskHistoryKey = 'solo_level_task_history';
+
+  // Check if a task has a completion record on a specific date
+  Future<bool> wasTaskCompletedOnDate(String taskId, DateTime date) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String key = '${_taskHistoryKey}_$taskId';
+    final history = prefs.getStringList(key) ?? [];
+    
+    final targetStr = date.toIso8601String().split('T').first;
+    for (var dateStr in history) {
+      if (dateStr.split('T').first == targetStr) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Set (add/remove) a completion timestamp for a task on a specific date
+  Future<void> setTaskCompletionOnDate(String taskId, DateTime date, bool isCompleted) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String key = '${_taskHistoryKey}_$taskId';
+    final history = prefs.getStringList(key) ?? [];
+    
+    final targetStr = date.toIso8601String().split('T').first;
+    
+    if (isCompleted) {
+      // Add if it doesn't exist
+      bool exists = history.any((d) => d.split('T').first == targetStr);
+      if (!exists) {
+        history.add(date.toIso8601String());
+      }
+    } else {
+      // Remove all entries matching that date
+      history.removeWhere((d) => d.split('T').first == targetStr);
+    }
+    
+    await prefs.setStringList(key, history);
+  }
+
+  // Record a task completion event
+  Future<void> recordTaskCompletion(String taskId) async {
+    await setTaskCompletionOnDate(taskId, DateTime.now(), true);
+  }
+
+  // Get the number of completed days for a task up to a target date
+  Future<int> getCompletedCount(String taskId, DateTime targetDate) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String key = '${_taskHistoryKey}_$taskId';
+    final history = prefs.getStringList(key) ?? [];
+    
+    int count = 0;
+    final targetStr = targetDate.toIso8601String().split('T').first;
+    
+    for (final dateStr in history) {
+      final historyDateOnly = dateStr.split('T').first;
+      if (historyDateOnly.compareTo(targetStr) <= 0) {
+        count++;
+      }
+    }
+    return count;
   }
 }

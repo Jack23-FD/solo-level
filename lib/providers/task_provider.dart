@@ -134,12 +134,45 @@ class TaskProvider with ChangeNotifier {
     );
 
     // Sync task update with database/prefs in background
-    _taskService.updateTask(updatedTask).catchError((e) {
+    _taskService.updateTask(updatedTask).then((_) {
+      if (updatedIsCompleted) {
+        _taskService.recordTaskCompletion(task.id);
+      }
+    }).catchError((e) {
       _errorMessage = 'Failed to update quest status: $e';
       notifyListeners();
       return updatedTask;
     });
 
+    return didLevelUp;
+  }
+
+  // Toggle completion for a specific date
+  Future<bool> toggleTaskCompletionForDate(
+    TaskModel task,
+    DateTime date,
+    AuthProvider authProvider,
+    bool currentStatus,
+  ) async {
+    final updatedIsCompleted = !currentStatus;
+    
+    final todayStr = DateTime.now().toIso8601String().split('T').first;
+    final targetStr = date.toIso8601String().split('T').first;
+    
+    // If the target date is today, we also update the actual task's status
+    if (todayStr == targetStr) {
+      return await toggleTaskCompletion(task, authProvider);
+    }
+    
+    // Otherwise, we only update the historical record for that date
+    await _taskService.setTaskCompletionOnDate(task.id, date, updatedIsCompleted);
+    
+    // Optimistically adjust XP and check level up
+    final didLevelUp = await authProvider.addXp(
+      updatedIsCompleted ? task.xpReward : -task.xpReward,
+    );
+    
+    notifyListeners();
     return didLevelUp;
   }
 
