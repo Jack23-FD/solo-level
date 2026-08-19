@@ -378,8 +378,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
                       children: [
                         OutlinedButton(
                           style: OutlinedButton.styleFrom(
@@ -393,7 +395,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                             style: TextStyle(color: AppColors.primaryGlow),
                           ),
                         ),
-                        const SizedBox(width: 12),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.accent,
