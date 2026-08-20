@@ -88,6 +88,14 @@ class TaskService {
         }
         final data = await query.order('created_at', ascending: false);
         tasks = (data as List).map((item) => TaskModel.fromJson(item)).toList();
+        
+        if (planId == null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setStringList(
+            _localTasksKey,
+            tasks.map((e) => jsonEncode(e.toJson())).toList(),
+          );
+        }
       } catch (_) {}
     }
 
@@ -173,6 +181,11 @@ class TaskService {
 
   // Create task
   Future<TaskModel> createTask(TaskModel task) async {
+    final prefs = await SharedPreferences.getInstance();
+    final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
+    tasksJson.insert(0, jsonEncode(task.toJson()));
+    await prefs.setStringList(_localTasksKey, tasksJson);
+
     final client = SupabaseConfig.client;
     if (client != null) {
       final data = await client
@@ -181,17 +194,23 @@ class TaskService {
           .select()
           .single();
       return TaskModel.fromJson(data);
-    } else {
-      final prefs = await SharedPreferences.getInstance();
-      final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
-      tasksJson.insert(0, jsonEncode(task.toJson()));
-      await prefs.setStringList(_localTasksKey, tasksJson);
-      return task;
     }
+    return task;
   }
 
   // Update task
   Future<TaskModel> updateTask(TaskModel task) async {
+    final prefs = await SharedPreferences.getInstance();
+    final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
+    final index = tasksJson.indexWhere((item) {
+      final map = jsonDecode(item);
+      return map['id'] == task.id;
+    });
+    if (index != -1) {
+      tasksJson[index] = jsonEncode(task.toJson());
+      await prefs.setStringList(_localTasksKey, tasksJson);
+    }
+
     final client = SupabaseConfig.client;
     if (client != null) {
       final data = await client
@@ -201,50 +220,39 @@ class TaskService {
           .select()
           .single();
       return TaskModel.fromJson(data);
-    } else {
-      final prefs = await SharedPreferences.getInstance();
-      final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
-      final index = tasksJson.indexWhere((item) {
-        final map = jsonDecode(item);
-        return map['id'] == task.id;
-      });
-      if (index != -1) {
-        tasksJson[index] = jsonEncode(task.toJson());
-        await prefs.setStringList(_localTasksKey, tasksJson);
-      }
-      return task;
     }
+    return task;
   }
 
   // Delete task
   Future<void> deleteTask(String taskId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
+    tasksJson.removeWhere((item) {
+      final map = jsonDecode(item);
+      return map['id'] == taskId;
+    });
+    await prefs.setStringList(_localTasksKey, tasksJson);
+
     final client = SupabaseConfig.client;
     if (client != null) {
       await client.from('tasks').delete().eq('id', taskId);
-    } else {
-      final prefs = await SharedPreferences.getInstance();
-      final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
-      tasksJson.removeWhere((item) {
-        final map = jsonDecode(item);
-        return map['id'] == taskId;
-      });
-      await prefs.setStringList(_localTasksKey, tasksJson);
     }
   }
 
   // Delete all tasks for a plan
   Future<void> deleteTasksForPlan(String planId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
+    tasksJson.removeWhere((item) {
+      final map = jsonDecode(item);
+      return map['plan_id'] == planId;
+    });
+    await prefs.setStringList(_localTasksKey, tasksJson);
+
     final client = SupabaseConfig.client;
     if (client != null) {
       await client.from('tasks').delete().eq('plan_id', planId);
-    } else {
-      final prefs = await SharedPreferences.getInstance();
-      final tasksJson = prefs.getStringList(_localTasksKey) ?? [];
-      tasksJson.removeWhere((item) {
-        final map = jsonDecode(item);
-        return map['plan_id'] == planId;
-      });
-      await prefs.setStringList(_localTasksKey, tasksJson);
     }
   }
 
